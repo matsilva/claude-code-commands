@@ -19,7 +19,8 @@ Research existing codebase and design:
 
 ### Technology Stack
 - **Language/Framework:** What and why? (align with existing)
-- **Dependencies:** New libraries needed? (minimize additions)
+- **Dependencies:** New libraries needed? (ensure Zod is available for TypeScript projects)
+- **Schema validation:** Use Zod for all data validation and type derivation
 - **Database:** Schema changes or new tables needed?
 - **Infrastructure:** Deployment, scaling, monitoring considerations
 
@@ -28,6 +29,7 @@ Research existing codebase and design:
 - **Relationships:** How do entities connect?
 - **Schema design:** Database tables/collections with fields
 - **Validation rules:** Required fields, constraints, business rules
+- **TypeScript schemas:** Use Zod for schema definition, derive types with z.infer (never standalone types)
 
 ### Architecture
 - **Component structure:** How does this fit into existing architecture?
@@ -62,12 +64,21 @@ gh project item-create $PROJECT_ID \
 
 ## Data Models
 ```typescript
-interface EntityName {
-  id: string;
-  field1: string;
-  field2: number;
-  // ... other fields
-}
+import { z } from 'zod';
+
+// Define schema with Zod (validation + structure)
+const EntityNameSchema = z.object({
+  id: z.string().uuid(),
+  field1: z.string().min(1),
+  field2: z.number().positive(),
+  // ... other fields with validation
+});
+
+// Derive type from schema
+type EntityName = z.infer<typeof EntityNameSchema>;
+
+// Use for validation
+const validatedData = EntityNameSchema.parse(rawData);
 ```
 
 ## Architecture
@@ -92,6 +103,8 @@ EOF
 
 1. **Follow existing patterns** - use current codebase conventions and structures
 2. **Minimize dependencies** - prefer existing libraries over new ones
-3. **Design for change** - build flexible, extensible interfaces
-4. **Security first** - validate all inputs, authorize all actions
-5. **Performance aware** - consider scale, caching, database efficiency
+3. **Zod-first TypeScript** - define schemas with Zod, derive types with z.infer, never standalone types
+4. **Design for change** - build flexible, extensible interfaces
+5. **Security first** - validate all inputs, authorize all actions
+6. **Performance aware** - consider scale, caching, database efficiency
+7. **Priority-driven design** - focus on implementation order and dependencies, not timelines or schedules

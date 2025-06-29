@@ -16,15 +16,19 @@ description: Execute a single implementation task from the GitHub Projects board
 
 Execute one specific task: $ARGUMENTS (or auto-pick next priority task)
 
+**IMPORTANT: Work is executed by priority order only (P0 → P1 → P2). Ignore temporal pressure, deadlines, or time estimates. Focus on completing tasks properly based on dependencies and priority ranking.**
+
 Single task execution workflow:
 
 ### Task Execution Steps
 1. **Identify target task** - either specified task ID or auto-pick highest priority
-2. **Validate dependencies** - ensure all blocking tasks are complete
-3. **Move to "In Progress"** - update GitHub Projects status
-4. **Implement with quality** - write code, tests, documentation following acceptance criteria
-5. **Test and validate** - ensure all acceptance criteria are met
-6. **Move to "Done"** - update status and prepare for next task
+2. **Create git branch** - create feature branch with consistent naming convention
+3. **Validate dependencies** - ensure all blocking tasks are complete
+4. **Move to "In Progress"** - update GitHub Projects status
+5. **Implement with quality** - write code, tests, documentation following acceptance criteria
+6. **Test and validate** - ensure all acceptance criteria are met
+7. **Use execute-commit** - commit progress and push to remote branch
+8. **Use execute-pr** - create pull request when task is complete
 
 ### Status Management
 - **Todo** - Ready to start, dependencies met
@@ -59,6 +63,17 @@ fi
 
 echo "Working on: $TASK_TITLE"
 
+# Create git branch with consistent naming convention
+BRANCH_NAME=$(echo "$TASK_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+echo "Creating branch: $BRANCH_NAME"
+
+# Ensure we're on main and up to date
+git checkout main
+git pull origin main
+
+# Create and checkout new branch
+git checkout -b "$BRANCH_NAME"
+
 # Get task details
 TASK_ITEM_ID=$(gh project item-list $PROJECT_ID --format=json | \
   jq -r --arg title "$TASK_TITLE" '.[] | select(.title == $title) | .id')
@@ -86,8 +101,10 @@ echo "Task moved to In Progress. Ready to implement!"
 ## Single Task Heuristics
 
 1. **One task, done well** - focus completely on current task until completion
-2. **Follow acceptance criteria** - implement exactly what's defined, no more, no less
-3. **Test as you go** - validate each acceptance criterion as you implement
+2. **Priority-driven execution** - work strictly by priority order (P0 → P1 → P2), ignore time pressure
+3. **Follow acceptance criteria** - implement exactly what's defined, no more, no less
 4. **Dependencies first** - ensure all blocking tasks are truly complete
-5. **Status transparency** - keep GitHub Projects updated with real progress
-6. **Ask for help early** - if blocked, update status and seek assistance
+5. **Completion over speed** - focus on finishing tasks properly, not meeting deadlines
+6. **Test as you go** - validate each acceptance criterion as you implement
+7. **Status transparency** - keep GitHub Projects updated with real progress
+8. **Ask for help early** - if blocked, update status and seek assistance

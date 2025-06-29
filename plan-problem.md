@@ -71,3 +71,4 @@ EOF
 3. **Quantify success** - define measurable outcomes, not just features
 4. **Scope tightly** - better to solve one problem well than many poorly
 5. **Use existing patterns** - research current codebase and similar solutions
+6. **Priority over time** - focus on what's most important, ignore temporal estimates and deadlines
