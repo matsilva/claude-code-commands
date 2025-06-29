@@ -1,4 +1,4 @@
----
+source /Users/akamat/.zshrc---
 allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Bash(gh *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
 description: Revise and iterate on the technical approach and architecture
 ---
