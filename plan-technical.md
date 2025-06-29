@@ -8,6 +8,7 @@ description: Design technical approach, architecture, and data models for a feat
 - Current directory: !`pwd`
 - Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
 - GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
+- GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
 - Existing codebase patterns: !`find . -name "*.ts" -o -name "*.js" -o -name "*.py" | head -10`
 
 ## Task

@@ -8,6 +8,7 @@ description: Execute a single implementation task from the GitHub Projects board
 - Current directory: !`pwd`
 - Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
 - GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
+- GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
 - Next P0 task: !`gh project item-list $(gh project list --owner="@me" --format=json | jq -r '.[0].id') --format=json | jq -r '.[] | select(.title | startswith("TASK-")) | select(.fieldValues.Priority == "P0") | "\(.title)"' | head -1`
 - Task details: !`gh project item-list $(gh project list --owner="@me" --format=json | jq -r '.[0].id') --format=json | jq -r '.[] | select(.title | startswith("TASK-")) | select(.fieldValues.Priority == "P0") | .content.body' | head -1`
 

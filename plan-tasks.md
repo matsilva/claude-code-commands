@@ -8,6 +8,7 @@ description: Break down feature into prioritized, actionable tasks with dependen
 - Current directory: !`pwd`
 - Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
 - GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
+- GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
 - Problem definition: Check existing "📋 Problem & Users" project item
 - Technical design: Check existing "🏗️ Technical Approach" project item
 
