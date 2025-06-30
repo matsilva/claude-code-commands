@@ -23,22 +23,23 @@ Execute one specific task: $ARGUMENTS (or auto-pick next priority task)
 Single task execution workflow:
 
 ### Task Execution Steps
+
 1. **Identify target task** - either specified task ID or auto-pick highest priority
 2. **Create git branch** - create feature branch with consistent naming convention
 3. **Validate dependencies** - ensure all blocking tasks are complete
 4. **Move to "In Progress"** - update GitHub Projects status
 5. **Implement with quality** - write code, tests, documentation following acceptance criteria
 6. **Test and validate** - ensure all acceptance criteria are met
-7. **Use execute-commit** - commit progress and push to remote branch
-8. **Use execute-pr** - create pull request when task is complete
 
 ### Status Management
+
 - **Todo** - Ready to start, dependencies met
 - **In Progress** - Currently working on
 - **In Review** - Implementation complete, needs review
 - **Done** - Accepted and merged
 
 ### Quality Standards
+
 - Follow existing code patterns and conventions
 - Write tests for new functionality
 - Update documentation as needed
