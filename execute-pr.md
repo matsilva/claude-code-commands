@@ -41,8 +41,9 @@ if [ -z "$TASK_ID" ]; then
 fi
 
 # Get task details from GitHub Projects
+PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number')
 PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id')
-TASK_DETAILS=$(gh project item-list $PROJECT_ID --format=json | \
+TASK_DETAILS=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .content.body')
 
 # Extract user story and acceptance criteria from task details
@@ -98,18 +99,21 @@ PR_URL=$(gh pr view --json url --jq '.url')
 echo "Pull request created: $PR_URL"
 echo "Task: $TASK_ID"
 
-# Update GitHub Projects task status to "In Review"
+# Update GitHub Projects task status to "In Review" (Note: Field operations may require project admin access)
 if [ -n "$PROJECT_ID" ] && [ -n "$TASK_ID" ]; then
-  TASK_ITEM_ID=$(gh project item-list $PROJECT_ID --format=json | \
+  TASK_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
     jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .id')
   
-  STATUS_FIELD_ID=$(gh project field-list $PROJECT_ID --format=json | \
-    jq -r '.[] | select(.name=="Status") | .id')
+  STATUS_FIELD_ID=$(gh project field-list $PROJECT_ID --format=json 2>/dev/null | \
+    jq -r '.[] | select(.name=="Status") | .id' || echo "")
   
   if [ -n "$TASK_ITEM_ID" ] && [ -n "$STATUS_FIELD_ID" ]; then
     gh project item-edit --id $TASK_ITEM_ID --field-id $STATUS_FIELD_ID \
-      --single-select-option-id "In Review"
-    echo "Updated task status to 'In Review'"
+      --project-id $PROJECT_ID --single-select-option-id "In Review" 2>/dev/null && \
+      echo "Updated task status to 'In Review'" || \
+      echo "Status update failed - task status in project item content"
+  else
+    echo "Status field not found or not accessible - task status in project item content"
   fi
 fi
 ```

@@ -47,8 +47,9 @@ fi
 echo "Updating progress for: $TASK_ID"
 
 # Get project and task details
+PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number')
 PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id')
-TASK_ITEM_ID=$(gh project item-list $PROJECT_ID --format=json | \
+TASK_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .id')
 
 if [ -z "$TASK_ITEM_ID" ]; then
@@ -57,7 +58,7 @@ if [ -z "$TASK_ITEM_ID" ]; then
 fi
 
 # Get current task content
-CURRENT_CONTENT=$(gh project item-list $PROJECT_ID --format=json | \
+CURRENT_CONTENT=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .content.body')
 
 echo "Current task content:"

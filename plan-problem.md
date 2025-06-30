@@ -37,13 +37,10 @@ Create GitHub project item titled "📋 Problem & Users" with comprehensive prob
 
 ```bash
 # Find or create project
-PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id' 2>/dev/null)
+PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number' 2>/dev/null)
 
-# Create problem & users item
-gh project item-create $PROJECT_ID \
-  --title "📋 Problem & Users" \
-  --body "$(cat <<'EOF'
-## Problem Statement
+# Create problem & users item content
+PROBLEM_CONTENT="## Problem Statement
 [Clear description of what we're solving]
 
 ## Success Criteria
@@ -59,9 +56,13 @@ gh project item-create $PROJECT_ID \
 ## Constraints
 - Technical: [limits]
 - Business: [limits]  
-- Scope: [what's out of scope]
-EOF
-)"
+- Scope: [what's out of scope]"
+
+# Create problem & users item
+gh project item-create $PROJECT_NUMBER \
+  --owner "@me" \
+  --title "📋 Problem & Users" \
+  --body "$PROBLEM_CONTENT"
 ```
 
 ## Research Heuristics

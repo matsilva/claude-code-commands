@@ -49,17 +49,18 @@ echo "Branch: $CURRENT_BRANCH"
 echo ""
 
 # Get project and task details
+PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number')
 PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id')
 
 # Get current task content
-TASK_DETAILS=$(gh project item-list $PROJECT_ID --format=json | \
+TASK_DETAILS=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .content.body')
 
 # Get original design documents
-PROBLEM_DEFINITION=$(gh project item-list $PROJECT_ID --format=json | \
+PROBLEM_DEFINITION=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem & Users"))) | .content.body' 2>/dev/null)
 
-TECHNICAL_APPROACH=$(gh project item-list $PROJECT_ID --format=json | \
+TECHNICAL_APPROACH=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical Approach"))) | .content.body' 2>/dev/null)
 
 # Show implementation changes

@@ -51,19 +51,16 @@ Create GitHub project item titled "🏗️ Technical Approach" with detailed tec
 
 ```bash
 # Find or create project
-PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id' 2>/dev/null)
+PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number' 2>/dev/null)
 
-# Create technical approach item
-gh project item-create $PROJECT_ID \
-  --title "🏗️ Technical Approach" \
-  --body "$(cat <<'EOF'
-## Technology Stack
+# Create technical approach item content
+TECHNICAL_CONTENT="## Technology Stack
 **Framework:** [choice and rationale]
 **New Dependencies:** [list with justification]
 **Database Changes:** [schema updates needed]
 
 ## Data Models
-```typescript
+\`\`\`typescript
 import { z } from 'zod';
 
 // Define schema with Zod (validation + structure)
@@ -79,7 +76,7 @@ type EntityName = z.infer<typeof EntityNameSchema>;
 
 // Use for validation
 const validatedData = EntityNameSchema.parse(rawData);
-```
+\`\`\`
 
 ## Architecture
 **API Endpoints:**
@@ -94,9 +91,13 @@ const validatedData = EntityNameSchema.parse(rawData);
 ## Security
 - Authentication: [requirements]
 - Validation: [rules]
-- Error handling: [approach]
-EOF
-)"
+- Error handling: [approach]"
+
+# Create technical approach item
+gh project item-create $PROJECT_NUMBER \
+  --owner "@me" \
+  --title "🏗️ Technical Approach" \
+  --body "$TECHNICAL_CONTENT"
 ```
 
 ## Design Heuristics
