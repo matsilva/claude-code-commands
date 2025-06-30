@@ -52,6 +52,13 @@ PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id')
 TASK_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .id')
 
+# Get design document IDs for potential updates
+PROBLEM_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
+  jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem & Users"))) | .id' 2>/dev/null)
+
+TECHNICAL_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
+  jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical Approach"))) | .id' 2>/dev/null)
+
 if [ -z "$TASK_ITEM_ID" ]; then
   echo "Error: Could not find task $TASK_ID in GitHub Projects"
   exit 1
@@ -121,6 +128,58 @@ echo "Progress recorded: $PROGRESS_UPDATE"
 echo ""
 echo "Current git status:"
 git status --short
+
+echo ""
+echo "🔄 DESIGN DOCUMENT SYNC CHECK"
+echo "=============================="
+echo "Checking if implementation learnings should update design documents..."
+echo ""
+
+# Prompt for design document updates if they exist
+if [ -n "$PROBLEM_ITEM_ID" ] || [ -n "$TECHNICAL_ITEM_ID" ]; then
+  echo "Available design documents:"
+  [ -n "$PROBLEM_ITEM_ID" ] && echo "  📋 Problem & Users document (ID: $PROBLEM_ITEM_ID)"
+  [ -n "$TECHNICAL_ITEM_ID" ] && echo "  🏗️ Technical Approach document (ID: $TECHNICAL_ITEM_ID)"
+  echo ""
+  
+  echo "Did implementation reveal any design changes? (y/n)"
+  read -r DESIGN_CHANGES
+  
+  if [ "$DESIGN_CHANGES" = "y" ] || [ "$DESIGN_CHANGES" = "Y" ]; then
+    echo ""
+    echo "What type of design updates are needed? (Enter numbers separated by spaces)"
+    echo "1. Problem definition or user story refinements"
+    echo "2. Technical architecture or approach changes"
+    echo "3. Both problem and technical updates"
+    echo "4. No updates needed"
+    read -r UPDATE_TYPE
+    
+    case $UPDATE_TYPE in
+      *1*|*3*)
+        echo ""
+        echo "Problem/User updates needed. Run this command to update:"
+        echo "  revise-problem 'Implementation insights: $PROGRESS_UPDATE'"
+        ;;
+    esac
+    
+    case $UPDATE_TYPE in
+      *2*|*3*)
+        echo ""
+        echo "Technical updates needed. Run this command to update:"
+        echo "  revise-technical 'Architecture learnings: $PROGRESS_UPDATE'"
+        ;;
+    esac
+    
+    if [[ "$UPDATE_TYPE" == *1* ]] || [[ "$UPDATE_TYPE" == *2* ]] || [[ "$UPDATE_TYPE" == *3* ]]; then
+      echo ""
+      echo "⚠️  Remember to update design documents to keep planning in sync!"
+    fi
+  fi
+else
+  echo "No design documents found. Consider creating them for better end-to-end planning:"
+  echo "  plan-problem '[task description]'"
+  echo "  plan-technical '[task description]'"
+fi
 ```
 
 ## Update Heuristics

@@ -56,12 +56,18 @@ PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id')
 TASK_DETAILS=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r --arg task "$TASK_ID" '.[] | select(.title | contains($task)) | .content.body')
 
-# Get original design documents
+# Get original design documents and their IDs for potential updates
 PROBLEM_DEFINITION=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem & Users"))) | .content.body' 2>/dev/null)
 
+PROBLEM_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
+  jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem & Users"))) | .id' 2>/dev/null)
+
 TECHNICAL_APPROACH=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
   jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical Approach"))) | .content.body' 2>/dev/null)
+
+TECHNICAL_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
+  jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical Approach"))) | .id' 2>/dev/null)
 
 # Show implementation changes
 echo "📁 IMPLEMENTATION CHANGES"
@@ -177,6 +183,38 @@ echo ""
 echo "If issues found, use:"
 echo "  revise-execute '[describe needed corrections]'"
 echo ""
+echo "🔄 DESIGN DOCUMENT SYNC"
+echo "========================"
+echo "Checking if design documents need updates based on implementation learning..."
+echo ""
+
+# Check if any lessons learned or design changes should be synced back
+if [ -n "$PROBLEM_ITEM_ID" ] || [ -n "$TECHNICAL_ITEM_ID" ]; then
+  echo "Available design documents for sync:"
+  [ -n "$PROBLEM_ITEM_ID" ] && echo "  📋 Problem & Users document (ID: $PROBLEM_ITEM_ID)"
+  [ -n "$TECHNICAL_ITEM_ID" ] && echo "  🏗️ Technical Approach document (ID: $TECHNICAL_ITEM_ID)"
+  echo ""
+  echo "Consider updating design documents if implementation revealed:"
+  echo "□ New technical constraints or requirements"
+  echo "□ Better understanding of user needs"
+  echo "□ Architecture changes or optimizations"
+  echo "□ Updated scope or acceptance criteria"
+  echo "□ Security considerations discovered"
+  echo ""
+  echo "To update design docs with implementation learnings:"
+  if [ -n "$PROBLEM_ITEM_ID" ]; then
+    echo "  revise-problem 'lessons learned from implementation'"
+  fi
+  if [ -n "$TECHNICAL_ITEM_ID" ]; then
+    echo "  revise-technical 'architecture updates based on implementation'"
+  fi
+else
+  echo "No design documents found to sync. Consider creating them for future reference:"
+  echo "  plan-problem '[feature description]'"
+  echo "  plan-technical '[feature description]'"
+fi
+echo ""
+
 echo "🏁 REVIEW COMPLETE"
 echo "=================="
 ```
