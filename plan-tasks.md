@@ -1,6 +1,6 @@
 ---
 allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Bash(gh *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
-description: Create simple task breakdown overview with priorities and dependencies
+description: Break down feature into prioritized, actionable tasks with comprehensive context analysis
 ---
 
 ## Context
@@ -9,44 +9,61 @@ description: Create simple task breakdown overview with priorities and dependenc
 - Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
 - GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
 - GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
+- Codebase patterns: !`find . -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.md" | head -15`
+- Package files: !`find . -name "package.json" -o -name "Cargo.toml" -o -name "requirements.txt" -o -name "go.mod" | head -5`
 - Problem definition: Check existing "📋 Problem & Users" project item
 - Technical design: Check existing "🏗️ Technical Approach" project item
 
 ## Task
 
-Create task breakdown overview for: $ARGUMENTS
+Break down implementation plan for: $ARGUMENTS
 
-**IMPORTANT: Focus on creating a simple overview of tasks with priorities and dependencies. Detailed task specs should be created later using the enhance-task command.**
+**IMPORTANT: Analyze ALL available context - problem definition, technical approach, codebase patterns, external docs, and dependencies. Create specific, actionable tasks with detailed implementation guidance.**
 
-**CRITICAL: Keep tasks high-level and focused. Avoid overengineering with too many detailed specifications at this planning stage.**
+**CRITICAL: Each task must be small batch (1-4 hours), have clear scope boundaries with explicit "Out of Scope" sections, and include specific file changes, API endpoints, and constraints.**
 
-Create task breakdown overview based on problem definition and technical design:
+Create comprehensive task breakdown with full context integration:
 
-### Planning Strategy
-1. **Analyze problem definition** - understand user needs and success criteria
-2. **Review technical approach** - identify key components and architecture
-3. **Break into logical phases** - group related functionality together
-4. **Identify dependencies** - what must be built before what
-5. **Assign priorities** - P0 (core functionality), P1 (important features), P2 (enhancements)
-6. **Create simple task list** - high-level tasks that can be enhanced later
+### Context Analysis Strategy
+1. **Problem & User Context** - Extract user stories, success criteria, and constraints from problem definition
+2. **Technical Context** - Leverage architecture, data models, and tech stack from technical approach
+3. **Codebase Context** - Analyze existing patterns, file structures, naming conventions, and dependencies
+4. **External Context** - Review README, docs, configuration files for additional constraints
+5. **Integration Context** - Identify existing systems, APIs, and components that must be preserved
+6. **Scope Context** - Define clear boundaries of what IS and IS NOT included
 
-### Task Overview Format
-Create GitHub project item titled "📝 [Feature Name] - Tasks & Priority" containing:
-- **Simple task list** - high-level implementation tasks
-- **Priority grouping** - P0/P1/P2 organization
-- **Basic dependencies** - what blocks what
-- **Next steps** - guidance for using enhance-task command on individual tasks
+### Task Specification Requirements
+Each task must include:
+- **Focused Scope:** Single-sentence summary of exactly what this task accomplishes
+- **User Story:** "As a [user], I want [goal], so that [benefit]" from problem definition
+- **Context Analysis:** What already exists vs what's missing, based on full codebase analysis
+- **File Structure Changes:** Explicit before/after showing NEW/MODIFIED/MOVED files with paths
+- **Implementation Details:** Exact files, functions, components, API endpoints to create/modify
+- **Technical Specifications:** Code patterns, data structures, schemas following existing conventions
+- **Implementation Constraints:** Clear list of what NOT to change or reimplement
+- **External Dependencies:** Required libraries, services, or external integrations
+- **Integration Points:** How this connects to existing systems and components
+- **Acceptance Criteria:** Granular, testable conditions (not high-level outcomes)
+- **Success Definition:** Clear definition of what completion looks like and how to verify
+- **Out of Scope:** Explicit boundaries listing what NOT to implement
+- **Batch Size:** Ensure 1-4 hours of focused work per task
+- **Dependencies:** What must be completed first
+- **Priority:** P0/P1/P2 based on user impact and dependencies
 
 ### Priority Guidelines
-- **P0 (Must Have):** Core functionality, blocks other work, user-critical
-- **P1 (Should Have):** Important but not blocking, clear user value
-- **P2 (Nice to Have):** Polish, optimization, future enhancement
+- **P0 (Must Have):** Core functionality, blocks other work, user-critical features
+- **P1 (Should Have):** Important but not blocking, clear user value, enhances core features  
+- **P2 (Nice to Have):** Polish, optimization, future enhancements, non-critical features
 
 ## Output
 
-Create single GitHub project item with simple task breakdown overview. Individual detailed tasks can be created later using the enhance-task command.
+1. **Comprehensive context analysis** - full understanding of problem, technical approach, and codebase
+2. Create GitHub project item titled "📝 [Feature Name] - Tasks & Priority" with task breakdown overview
+3. **Create individual GitHub project items for EACH implementation task** with full specifications
+4. Each task includes complete context analysis, specific implementation details, and clear scope boundaries
+5. Set Priority field for each task item
 
-## Simple Workflow
+## Comprehensive Workflow
 
 ```bash
 # Validate arguments
@@ -71,84 +88,309 @@ fi
 # Add Priority field if not exists
 gh project field-create $PROJECT_ID --name "Priority" --type "single_select" --options "P0,P1,P2" 2>/dev/null || true
 
-echo "Creating task breakdown for: $ARGUMENTS"
-echo "Analyzing problem definition and technical approach..."
+echo "🔍 COMPREHENSIVE CONTEXT ANALYSIS FOR: $ARGUMENTS"
+echo "=================================================="
+echo ""
 
-# Get context from existing project items
+# 1. PROBLEM & USER CONTEXT ANALYSIS
+echo "📋 ANALYZING PROBLEM DEFINITION & USER CONTEXT"
+echo "----------------------------------------------"
 PROBLEM_DEFINITION=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json 2>/dev/null | \
-  jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem"))) | .content.body' || echo "No problem definition found")
+  jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem"))) | .content.body' || echo "")
 
+if [ -n "$PROBLEM_DEFINITION" ]; then
+  echo "✅ Found problem definition"
+  echo "Extracting user stories and success criteria..."
+  USER_STORIES=$(echo "$PROBLEM_DEFINITION" | grep -A 10 "User Stories" || echo "No user stories found")
+  SUCCESS_CRITERIA=$(echo "$PROBLEM_DEFINITION" | grep -A 10 "Success Criteria" || echo "No success criteria found")
+  CONSTRAINTS=$(echo "$PROBLEM_DEFINITION" | grep -A 10 "Constraints" || echo "No constraints found")
+else
+  echo "⚠️  No problem definition found - create with plan-problem command first"
+  USER_STORIES="No user stories available"
+  SUCCESS_CRITERIA="No success criteria available"
+  CONSTRAINTS="No constraints available"
+fi
+echo ""
+
+# 2. TECHNICAL CONTEXT ANALYSIS
+echo "🏗️ ANALYZING TECHNICAL APPROACH & ARCHITECTURE"
+echo "----------------------------------------------"
 TECHNICAL_APPROACH=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json 2>/dev/null | \
-  jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical"))) | .content.body' || echo "No technical approach found")
+  jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical"))) | .content.body' || echo "")
 
-# Create simple task breakdown overview
-OVERVIEW_CONTENT="## Task Breakdown for $ARGUMENTS
+if [ -n "$TECHNICAL_APPROACH" ]; then
+  echo "✅ Found technical approach"
+  echo "Extracting technology stack and architecture..."
+  TECH_STACK=$(echo "$TECHNICAL_APPROACH" | grep -A 10 "Technology Stack" || echo "No tech stack found")
+  DATA_MODELS=$(echo "$TECHNICAL_APPROACH" | grep -A 10 "Data Models" || echo "No data models found")
+  ARCHITECTURE=$(echo "$TECHNICAL_APPROACH" | grep -A 10 "Architecture" || echo "No architecture found")
+else
+  echo "⚠️  No technical approach found - create with plan-technical command first"
+  TECH_STACK="No tech stack available"
+  DATA_MODELS="No data models available"
+  ARCHITECTURE="No architecture available"
+fi
+echo ""
+
+# 3. CODEBASE CONTEXT ANALYSIS
+echo "💻 ANALYZING EXISTING CODEBASE PATTERNS"
+echo "--------------------------------------"
+echo "Analyzing file structure and patterns..."
+
+# Detect project type and patterns
+PROJECT_TYPE="unknown"
+MAIN_LANGUAGE="unknown"
+FRAMEWORK="unknown"
+
+if [ -f "package.json" ]; then
+  PROJECT_TYPE="javascript/typescript"
+  echo "✅ Found JavaScript/TypeScript project"
+  FRAMEWORK=$(cat package.json | jq -r '.dependencies | keys[]' | grep -E 'react|vue|angular|express|next' | head -1 || echo "vanilla")
+  if find . -name "*.ts" -not -path "./node_modules/*" | head -1 >/dev/null 2>&1; then
+    MAIN_LANGUAGE="typescript"
+  else
+    MAIN_LANGUAGE="javascript"
+  fi
+elif [ -f "Cargo.toml" ]; then
+  PROJECT_TYPE="rust"
+  MAIN_LANGUAGE="rust"
+  echo "✅ Found Rust project"
+elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
+  PROJECT_TYPE="python"
+  MAIN_LANGUAGE="python"
+  echo "✅ Found Python project"
+elif [ -f "go.mod" ]; then
+  PROJECT_TYPE="go"
+  MAIN_LANGUAGE="go"
+  echo "✅ Found Go project"
+fi
+
+# Analyze directory structure
+SRC_STRUCTURE=""
+if [ -d "src" ]; then
+  SRC_STRUCTURE=$(find src -type d | head -10 | sed 's/^/  /')
+  echo "✅ Found src/ directory structure:"
+  echo "$SRC_STRUCTURE"
+fi
+
+# Analyze existing API patterns
+API_PATTERNS=""
+if find . -name "*.ts" -o -name "*.js" | xargs grep -l "app\." 2>/dev/null | head -1 >/dev/null; then
+  API_PATTERNS="Express.js patterns detected"
+  echo "✅ Found Express.js API patterns"
+elif find . -name "*.py" | xargs grep -l "FastAPI\|@app\." 2>/dev/null | head -1 >/dev/null; then
+  API_PATTERNS="FastAPI patterns detected"
+  echo "✅ Found FastAPI patterns"
+elif find . -name "*.rs" | xargs grep -l "actix\|warp" 2>/dev/null | head -1 >/dev/null; then
+  API_PATTERNS="Rust web framework detected"
+  echo "✅ Found Rust web framework patterns"
+fi
+
+# Analyze database patterns
+DB_PATTERNS=""
+if find . -name "*.sql" 2>/dev/null | head -1 >/dev/null; then
+  DB_PATTERNS="SQL database patterns"
+  echo "✅ Found SQL database files"
+elif find . -name "*.ts" -o -name "*.js" | xargs grep -l "mongoose\|Schema" 2>/dev/null | head -1 >/dev/null; then
+  DB_PATTERNS="MongoDB/Mongoose patterns"
+  echo "✅ Found MongoDB patterns"
+elif find . -name "*.py" | xargs grep -l "SQLAlchemy\|models.Model" 2>/dev/null | head -1 >/dev/null; then
+  DB_PATTERNS="SQLAlchemy patterns"
+  echo "✅ Found SQLAlchemy patterns"
+fi
+
+echo ""
+
+# 4. EXTERNAL DOCUMENTATION ANALYSIS
+echo "📚 ANALYZING EXTERNAL DOCUMENTATION"
+echo "----------------------------------"
+README_CONTENT=""
+if [ -f "README.md" ]; then
+  echo "✅ Found README.md"
+  README_CONTENT=$(head -50 README.md)
+  echo "Extracted setup and usage patterns from README"
+else
+  echo "⚠️  No README.md found"
+fi
+
+# Analyze configuration files
+CONFIG_PATTERNS=""
+if [ -f ".env.example" ] || [ -f ".env" ]; then
+  CONFIG_PATTERNS="Environment configuration patterns found"
+  echo "✅ Found environment configuration"
+fi
+if [ -f "docker-compose.yml" ] || [ -f "Dockerfile" ]; then
+  CONFIG_PATTERNS="$CONFIG_PATTERNS, Docker containerization"
+  echo "✅ Found Docker configuration"
+fi
+
+echo ""
+echo "🎯 CONTEXT ANALYSIS COMPLETE - CREATING SPECIFIC TASKS"
+echo "====================================================="
+echo ""
+
+# Create comprehensive task breakdown overview
+OVERVIEW_CONTENT="## Comprehensive Task Breakdown for $ARGUMENTS
+
+### 📋 Context Summary
+**Problem Definition:** $USER_STORIES
+**Success Criteria:** $SUCCESS_CRITERIA
+**Technical Stack:** $PROJECT_TYPE ($MAIN_LANGUAGE, $FRAMEWORK)
+**Architecture Patterns:** $API_PATTERNS, $DB_PATTERNS
+**Constraints:** $CONSTRAINTS
+
+### 🎯 Task Breakdown Strategy
+Based on comprehensive analysis of:
+- Problem definition and user stories
+- Technical approach and architecture
+- Existing codebase patterns ($PROJECT_TYPE)
+- External documentation and configuration
+- Integration requirements and constraints
 
 ### P0 Tasks (Must Have - Core Functionality)
-- TASK-001: [First core implementation task]
-- TASK-002: [Second core implementation task] 
-- TASK-003: [Third core implementation task]
+**Small batch work: 1-4 hours each, specific implementation details**
 
-### P1 Tasks (Should Have - Important Features)
-- TASK-004: [First important feature]
-- TASK-005: [Second important feature]
+### P1 Tasks (Should Have - Important Features)  
+**Well-scoped enhancements with clear boundaries**
 
-### P2 Tasks (Nice to Have - Enhancements)
-- TASK-006: [First enhancement]
-- TASK-007: [Second enhancement]
+### P2 Tasks (Nice to Have - Future Enhancements)
+**Optional improvements with explicit scope limits**
 
-### Dependencies
-- TASK-002 depends on TASK-001
-- TASK-003 depends on TASK-001, TASK-002
-- TASK-004 depends on TASK-003
-- TASK-005 depends on TASK-003
-- TASK-006 depends on TASK-004
-- TASK-007 depends on TASK-005
+### Dependencies & Integration
+**Clear blocking relationships and integration points**
 
-### Next Steps
-1. Review this task breakdown
-2. Use enhance-task command to add detailed specifications to individual tasks
-3. Start with P0 tasks in dependency order
-4. Example: \`enhance-task 9 TASK-001-ITEM-ID\`
-
-### Context References
-- Problem Definition: Check '📋 Problem & Users' project item
-- Technical Approach: Check '🏗️ Technical Approach' project item
+### Implementation Guidance
+- Follow existing $MAIN_LANGUAGE patterns in codebase
+- Integrate with $FRAMEWORK architecture
+- Respect existing $API_PATTERNS and $DB_PATTERNS
+- Maintain consistency with current file structure
+- Consider $CONFIG_PATTERNS for deployment
 
 ---
-*Created on $(date)*
-*Use enhance-task command to add detailed specifications to individual tasks*"
+*Created on $(date) with comprehensive context analysis*
+*Each task includes specific implementation details and scope boundaries*"
 
-# Create the task breakdown overview item
+# Create the comprehensive task breakdown overview
 gh project item-create $PROJECT_NUMBER \
   --owner "@me" \
   --title "📝 $ARGUMENTS - Tasks & Priority" \
   --body "$OVERVIEW_CONTENT"
 
-if [ $? -eq 0 ]; then
-    echo "✅ Task breakdown overview created successfully!"
-    echo "📝 Created: '$ARGUMENTS - Tasks & Priority'"
-    echo ""
-    echo "Next Steps:"
-    echo "1. Review the task breakdown in your GitHub project"
-    echo "2. Use enhance-task command to add detailed specs to each task"
-    echo "3. Start implementing P0 tasks in dependency order"
-    echo ""
-    echo "Example: enhance-task $PROJECT_NUMBER TASK-ITEM-ID"
-else
-    echo "❌ Failed to create task breakdown overview"
-    echo "Check permissions and try again"
-    exit 1
-fi
+echo "📝 Created comprehensive task breakdown overview"
+echo ""
+echo "🔨 CREATING INDIVIDUAL DETAILED TASKS"
+echo "====================================="
+echo ""
+echo "Note: This example shows the task creation pattern."
+echo "In practice, create 3-7 specific tasks based on the actual feature requirements."
+echo ""
+
+# Example P0 Task Creation (create actual tasks based on specific feature)
+TASK1_CONTENT="**Focused Scope:** [Specific implementation task based on problem definition analysis]
+
+**User Story:** [Extract from problem definition] As a [specific user], I want [specific goal], so that [clear benefit]
+
+**Context Analysis:**
+✅ **What Already Exists:**
+- Project Type: $PROJECT_TYPE with $MAIN_LANGUAGE
+- Framework: $FRAMEWORK with $API_PATTERNS
+- Database: $DB_PATTERNS
+- File Structure: $SRC_STRUCTURE
+- Configuration: $CONFIG_PATTERNS
+
+❌ **What's Missing:**
+- [Specific functionality gaps identified from technical approach]
+- [Required integrations not yet implemented]
+- [Missing data models or API endpoints]
+
+**File Structure Changes:**
+\`\`\`
+[Current structure]
+├── existing-file.ext (EXISTS)
+├── modified-file.ext (MODIFIED - add specific functionality)
+└── new-file.ext (NEW - create specific component)
+\`\`\`
+
+**Implementation Details:**
+- Create/modify specific files: [exact file paths]
+- Implement specific functions: [function signatures]
+- Add specific API endpoints: [exact routes and methods]
+- Database changes: [specific schema modifications]
+
+**Technical Specifications:**
+[Code examples following existing $MAIN_LANGUAGE patterns]
+\`\`\`
+// Example following detected patterns in codebase
+// Show actual implementation structure
+\`\`\`
+
+**Implementation Constraints:**
+❌ **Do NOT implement:**
+- [Features explicitly out of scope from problem definition]
+- [Changes that would break existing $API_PATTERNS]
+- [Modifications to core $FRAMEWORK architecture]
+- [Database changes outside defined scope]
+
+**External Dependencies:**
+- Required libraries: [specific versions]
+- External services: [APIs or services needed]
+- Configuration changes: [environment variables]
+
+**Integration Points:**
+- Existing APIs: [how this connects to current endpoints]
+- Database: [how this integrates with $DB_PATTERNS]
+- Frontend: [if applicable, how UI connects]
+
+**Acceptance Criteria:**
+- [ ] [Specific, testable condition based on success criteria]
+- [ ] [Integration with existing $FRAMEWORK patterns verified]
+- [ ] [Database changes work with $DB_PATTERNS]
+- [ ] [API endpoints follow $API_PATTERNS conventions]
+- [ ] [Code follows $MAIN_LANGUAGE best practices from codebase]
+
+**Success Definition:**
+[Clear description based on problem definition success criteria]
+
+**Out of Scope:**
+- [Explicit list from problem definition constraints]
+- [Features that would be separate P1/P2 tasks]
+- [Changes outside the 1-4 hour scope]
+
+**Batch Size:** 1-4 hours of focused work
+**Dependencies:** [List specific blocking tasks]
+**Priority:** P0 (Core functionality required for success criteria)"
+
+echo "Creating example detailed task structure..."
+echo "✅ Task template ready for actual feature-specific implementation"
+
+echo ""
+echo "🎉 TASK BREAKDOWN COMPLETE"
+echo "========================="
+echo "✅ Comprehensive context analysis performed"
+echo "✅ Task breakdown overview created"
+echo "✅ Individual task template established"
+echo ""
+echo "Next Steps:"
+echo "1. Review the task breakdown in your GitHub project"
+echo "2. Create specific tasks based on your actual feature requirements"
+echo "3. Start implementing P0 tasks in dependency order"
+echo "4. Use the established patterns for consistent task creation"
 ```
 
-## Planning Heuristics
+## Comprehensive Planning Heuristics
 
-1. **Keep it simple** - create high-level task overview, not detailed specifications
-2. **Priority first** - focus on P0/P1/P2 organization and dependencies
-3. **Use enhance-task later** - detailed specs should be added when ready to implement
-4. **Logical grouping** - group related functionality together
-5. **Dependency awareness** - identify what must be built before what
-6. **Reference context** - point to problem definition and technical approach
-7. **Clear next steps** - provide guidance for moving from planning to implementation
-8. **Avoid overengineering** - resist the urge to add too much detail at planning stage
+1. **Context-driven analysis** - analyze ALL available context before creating tasks
+2. **Full integration** - leverage problem definition, technical approach, and codebase patterns
+3. **Specific implementation details** - include exact files, functions, API endpoints, and data models
+4. **Small batch sizing** - ensure each task is 1-4 hours of focused work
+5. **Clear scope boundaries** - explicit "Out of Scope" sections prevent feature creep
+6. **Pattern consistency** - follow existing codebase conventions and architecture
+7. **Dependency awareness** - identify and call out blocking relationships clearly
+8. **External integration** - consider external docs, configuration, and deployment requirements
+9. **User-centric focus** - tie each task back to user stories and success criteria
+10. **Quality enforcement** - include acceptance criteria that verify integration and patterns
+11. **Constraint respect** - honor limitations from problem definition and technical approach
+12. **Priority-driven** - organize by user impact and dependencies, not time estimates
+13. **Verification-ready** - include clear success definitions and testing approaches
+14. **Architecture-aware** - ensure tasks fit within existing system design
+15. **Documentation-informed** - use README and config files to understand deployment context
