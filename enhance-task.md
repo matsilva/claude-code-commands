@@ -1,214 +1,199 @@
 ---
-allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Bash(gh *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
-description: Enhance existing task with detailed context and implementation structure
+allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
+description: Enhance or expand a specific task with additional details and context
 ---
 
 ## Context
 
 - Current directory: !`pwd`
-- Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
-- GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
-- GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
-- Target task: $ARGUMENTS (project-number item-id format)
+- Git repository: !`git remote -v 2>/dev/null | head -1 || echo "Not a git repository"`
+- Existing projects: !`ls -la .codeloops/ 2>/dev/null | grep "^d" | awk '{print $9}' | grep -v "^\." || echo "No existing projects"`
 
 ## Task
 
-Enhance vague task with structured implementation details: $ARGUMENTS
+Enhance specific task: $ARGUMENTS
 
-**IMPORTANT: Transform minimal task descriptions into comprehensive, actionable tasks following the established template structure. Add missing context without changing the original intent.**
+Analyze the specified task in tasks.json, gather additional context from problem.json and technical.json, and expand the task with comprehensive implementation details.
 
-**CRITICAL: Preserve the original task scope and requirements. Enhancement means adding structure and details, not expanding functionality or changing objectives.**
-
-Transform existing GitHub project item by adding:
-
-### Enhancement Strategy
-1. **Read current task content** - extract existing description and requirements
-2. **Analyze codebase context** - identify relevant patterns and constraints 
-3. **Generate structured content** - apply standard task template format
-4. **Update with enhanced version** - replace minimal description with full structure
-5. **Preserve original scope** - ensure enhancement doesn't change core requirements
-
-### Enhancement Template
-Each enhanced task will include:
-- **Focused Scope:** Single-sentence summary of exactly what this task accomplishes
-- **User Story:** "As a [user], I want [goal], so that [benefit]" format
-- **Analysis of Current State:** What already exists vs what's missing for this task
-- **File Structure Changes:** Explicit before/after showing NEW/MODIFIED files
-- **Implementation Details:** Exactly which files, functions, components to create or modify
-- **Technical Specifications:** Specific code patterns and examples following existing conventions
-- **Implementation Constraints:** Clear list of what NOT to change or reimplement
-- **Reuse Existing Patterns:** Guidance on following established codebase conventions
-- **Acceptance Criteria:** Granular, testable implementation conditions
-- **Success Definition:** Clear definition of what successful completion looks like
-- **Out of Scope:** Explicit boundaries listing what NOT to implement
-- **Dependencies:** What must be completed first
-- **Priority:** P0/P1/P2 classification
-
-## Output
-
-Enhanced GitHub project item with comprehensive structure while preserving original requirements and scope.
-
-## Simple Workflow
+## JSON-Based Workflow
 
 ```bash
 # Validate arguments
-if [[ "$ARGUMENTS" != *" "* ]]; then
-    echo "Error: Please provide project number and item ID"
-    echo "Usage: enhance-task <project-number> <item-id>"
-    echo "Example: enhance-task 9 PVTI_lAHOAETY5M4A8tSbzgcDLP4"
+if [ -z "$ARGUMENTS" ]; then
+    echo "Error: Please specify feature and task ID"
+    echo "Usage: enhance-task <feature_or_task_or_bugfix> <task_id>"
+    echo "Example: enhance-task 'user-authentication-feature' 'T1'"
     exit 1
 fi
 
-# Parse arguments
-PROJECT_NUMBER=$(echo "$ARGUMENTS" | cut -d' ' -f1)
-ITEM_ID=$(echo "$ARGUMENTS" | cut -d' ' -f2)
+# Extract feature name and task ID
+FEATURE_NAME=$(echo "$ARGUMENTS" | awk '{print $1}' | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
+TASK_ID=$(echo "$ARGUMENTS" | awk '{print $2}')
 
-# Validate GitHub authentication
-if ! gh auth status >/dev/null 2>&1; then
-    echo "Error: Not authenticated with GitHub"
-    echo "Run: gh auth login --with-token < ~/.config/gh/my_token.txt"
+# Check if project directory and files exist
+PROJECT_DIR=".codeloops/$FEATURE_NAME"
+if [ ! -f "$PROJECT_DIR/tasks.json" ]; then
+    echo "⚠️  Task breakdown not found: $PROJECT_DIR/tasks.json"
+    echo "Run 'plan-tasks $FEATURE_NAME' first"
     exit 1
 fi
 
-# Read current task content
-echo "Reading current task content..."
-CURRENT_TASK=$(gh project item-view $PROJECT_NUMBER --owner="@me" --item-id $ITEM_ID --format json 2>/dev/null)
-
-if [ $? -ne 0 ] || [ -z "$CURRENT_TASK" ]; then
-    echo "Error: Project item not found or insufficient permissions"
-    echo "Project: $PROJECT_NUMBER, Item: $ITEM_ID"
+# Check if task exists
+TASK_EXISTS=$(jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | .id' "$PROJECT_DIR/tasks.json")
+if [ -z "$TASK_EXISTS" ]; then
+    echo "⚠️  Task $TASK_ID not found in $FEATURE_NAME"
+    echo "Available tasks:"
+    jq -r '.tasks[] | "- " + .id + ": " + .title' "$PROJECT_DIR/tasks.json"
     exit 1
 fi
 
-CURRENT_TITLE=$(echo "$CURRENT_TASK" | jq -r '.title // "No title"')
-CURRENT_BODY=$(echo "$CURRENT_TASK" | jq -r '.body // "No description"')
+echo "📝 ENHANCING TASK: $TASK_ID in $FEATURE_NAME"
+echo "============================================"
+echo ""
 
-echo "Current task: $CURRENT_TITLE"
-echo "Current description length: $(echo "$CURRENT_BODY" | wc -c) characters"
+# Display current task
+echo "📄 Current task content:"
+jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | 
+"Title: " + .title + "\n" +
+"Description: " + .description + "\n" +
+"Priority: " + .priority + "\n" +
+"Status: " + .status + "\n" +
+"Estimated Hours: " + (.estimatedHours | tostring)' "$PROJECT_DIR/tasks.json"
 
-# Check if task is already enhanced (has structured format)
-if echo "$CURRENT_BODY" | grep -q "**Focused Scope:**"; then
-    echo "Task appears to already be enhanced (contains structured format)"
-    echo "Current content:"
-    echo "$CURRENT_BODY"
-    read -p "Continue with re-enhancement? (y/N): " confirm
-    if [[ $confirm != [yY] ]]; then
-        echo "Enhancement cancelled"
-        exit 0
-    fi
+echo ""
+
+# Get context from problem and technical files
+if [ -f "$PROJECT_DIR/problem.json" ]; then
+    echo "📋 Problem Context:"
+    jq -r '"Problem: " + .problemStatement + "\nSuccess Criteria: " + (.successCriteria | join(", "))' "$PROJECT_DIR/problem.json"
+    echo ""
 fi
 
-# Analyze codebase for context (simple pattern detection)
-echo "Analyzing codebase context..."
-CODEBASE_PATTERNS=""
-if [ -f "package.json" ]; then
-    CODEBASE_PATTERNS="$CODEBASE_PATTERNS\n- TypeScript/JavaScript project with package.json"
-fi
-if [ -d "src/" ]; then
-    CODEBASE_PATTERNS="$CODEBASE_PATTERNS\n- Source code in src/ directory"
-fi
-if [ -f "README.md" ]; then
-    CODEBASE_PATTERNS="$CODEBASE_PATTERNS\n- Documentation in README.md"
+if [ -f "$PROJECT_DIR/technical.json" ]; then
+    echo "🏗️ Technical Context:"
+    jq -r '"Language: " + .technologyStack.language + "\nFramework: " + .technologyStack.framework' "$PROJECT_DIR/technical.json"
+    echo ""
 fi
 
-# Generate enhanced content with structured template
-ENHANCED_CONTENT="**Focused Scope:** [Enhanced from: $CURRENT_TITLE]
+echo "💡 What would you like to enhance?"
+echo "1. User story and acceptance criteria"
+echo "2. Implementation details"
+echo "3. File structure changes"
+echo "4. Technical specifications"
+echo "5. Dependencies and constraints"
+echo "6. Complete comprehensive enhancement"
+echo "7. Open JSON file in editor"
 
-$CURRENT_BODY
+read -p "Enter choice (1-7): " choice
 
-**User Story:** As a [user type], I want [specific goal], so that [clear benefit]
+case $choice in
+    1)
+        read -p "User story: " user_story
+        echo "Enter acceptance criteria (one per line, empty line to finish):"
+        criteria=()
+        while IFS= read -r line; do
+            [ -z "$line" ] && break
+            criteria+=("$line")
+        done
+        criteria_json=$(printf '%s\n' "${criteria[@]}" | jq -R . | jq -s .)
+        
+        jq --arg id "$TASK_ID" --arg story "$user_story" --argjson criteria "$criteria_json" \
+           '(.tasks[] | select(.id == $id) | .userStory) = $story |
+            (.tasks[] | select(.id == $id) | .acceptanceCriteria) = $criteria |
+            (.tasks[] | select(.id == $id) | .updatedDate) = now |
+            .metadata.updated = now' \
+           "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
+        echo "✅ Enhanced user story and acceptance criteria"
+        ;;
+    2)
+        echo "Current implementation details:"
+        jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | .implementationDetails | 
+        "Files: " + (.files | join(", ")) + "\n" +
+        "Functions: " + (.functions | join(", ")) + "\n" +
+        "API Endpoints: " + (.apiEndpoints | join(", "))' "$PROJECT_DIR/tasks.json"
+        echo ""
+        
+        read -p "Files to modify (comma-separated): " files_input
+        read -p "Functions to implement (comma-separated): " functions_input
+        read -p "API endpoints (comma-separated): " endpoints_input
+        
+        IFS=',' read -ra files_array <<< "$files_input"
+        IFS=',' read -ra functions_array <<< "$functions_input"
+        IFS=',' read -ra endpoints_array <<< "$endpoints_input"
+        
+        files_json=$(printf '%s\n' "${files_array[@]}" | sed 's/^[[:space:]]*//' | jq -R . | jq -s .)
+        functions_json=$(printf '%s\n' "${functions_array[@]}" | sed 's/^[[:space:]]*//' | jq -R . | jq -s .)
+        endpoints_json=$(printf '%s\n' "${endpoints_array[@]}" | sed 's/^[[:space:]]*//' | jq -R . | jq -s .)
+        
+        jq --arg id "$TASK_ID" \
+           --argjson files "$files_json" \
+           --argjson functions "$functions_json" \
+           --argjson endpoints "$endpoints_json" \
+           '(.tasks[] | select(.id == $id) | .implementationDetails.files) = $files |
+            (.tasks[] | select(.id == $id) | .implementationDetails.functions) = $functions |
+            (.tasks[] | select(.id == $id) | .implementationDetails.apiEndpoints) = $endpoints |
+            (.tasks[] | select(.id == $id) | .updatedDate) = now |
+            .metadata.updated = now' \
+           "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
+        echo "✅ Enhanced implementation details"
+        ;;
+    6)
+        echo "🔧 Performing comprehensive enhancement..."
+        read -p "Technical specifications: " tech_specs
+        read -p "Success definition: " success_def
+        echo "Enter out of scope items (one per line, empty line to finish):"
+        out_of_scope=()
+        while IFS= read -r line; do
+            [ -z "$line" ] && break
+            out_of_scope+=("$line")
+        done
+        out_of_scope_json=$(printf '%s\n' "${out_of_scope[@]}" | jq -R . | jq -s .)
+        
+        jq --arg id "$TASK_ID" \
+           --arg specs "$tech_specs" \
+           --arg success "$success_def" \
+           --argjson scope "$out_of_scope_json" \
+           '(.tasks[] | select(.id == $id) | .technicalSpecifications) = $specs |
+            (.tasks[] | select(.id == $id) | .successDefinition) = $success |
+            (.tasks[] | select(.id == $id) | .outOfScope) = $scope |
+            (.tasks[] | select(.id == $id) | .updatedDate) = now |
+            .metadata.updated = now' \
+           "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
+        echo "✅ Comprehensive enhancement complete"
+        ;;
+    7)
+        ${EDITOR:-nano} "$PROJECT_DIR/tasks.json"
+        jq '.metadata.updated = now' "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
+        echo "✅ Manual editing complete"
+        ;;
+    *)
+        echo "Feature not yet implemented. Use option 7 for manual editing."
+        ;;
+esac
 
-**Analysis of Current State:**
-✅ **What Already Exists:**
-- [List existing relevant code, patterns, or infrastructure]
-- [Identify reusable components or utilities]
+echo ""
+echo "📋 Enhanced task summary:"
+jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | 
+"ID: " + .id + "\n" +
+"Title: " + .title + "\n" +
+"Priority: " + .priority + "\n" +
+"Status: " + .status + "\n" +
+"Updated: " + .updatedDate' "$PROJECT_DIR/tasks.json"
 
-❌ **What's Missing:**
-- [Specific gaps that this task addresses]
-- [Missing functionality or components]
-
-**File Structure Changes:**
-\`\`\`
-[Show before/after directory structure]
-├── existing-file.ext (EXISTS)
-├── modified-file.ext (MODIFIED)
-└── new-file.ext (NEW)
-\`\`\`
-
-**Implementation Details:**
-- [Specific files to create or modify]
-- [Exact functions, components, or modules to implement]
-- [Integration points with existing code]
-
-**Technical Specifications:**
-[Include relevant code examples and patterns]
-\`\`\`
-// Example code following existing patterns
-// Show data structures, API contracts, etc.
-\`\`\`
-
-**Implementation Constraints:**
-❌ **Do NOT implement:**
-- [List what should NOT be changed]
-- [Features explicitly out of scope]
-- [Existing patterns that should not be modified]
-
-**Reuse Existing Patterns:**
-- [Specific guidance on following established conventions]
-- [Reference existing similar implementations]
-- [Code style and architecture guidelines to follow]
-
-**Acceptance Criteria:**
-- [ ] [Specific, testable condition 1]
-- [ ] [Specific, testable condition 2]
-- [ ] [Specific, testable condition 3]
-- [ ] [Additional measurable outcomes]
-
-**Success Definition:**
-[Clear description of what successful completion looks like and how to verify it]
-
-**Out of Scope:**
-- [Explicit list of what NOT to implement]
-- [Features that would be separate tasks]
-- [Future enhancements not part of this task]
-
-**Dependencies:** [List any blocking tasks or requirements]
-**Priority:** [P0/P1/P2 based on criticality and user impact]
-
----
-*Enhanced on $(date) from original task description*"
-
-# Update the project item with enhanced content
-echo "Updating project item with enhanced content..."
-gh project item-edit $PROJECT_NUMBER --owner="@me" --item-id $ITEM_ID --body "$ENHANCED_CONTENT"
-
-if [ $? -eq 0 ]; then
-    echo "✅ Task successfully enhanced!"
-    echo "Project: $PROJECT_NUMBER"
-    echo "Item: $ITEM_ID"
-    echo "Enhanced task now includes structured format with:"
-    echo "- User story and focused scope"
-    echo "- Current state analysis"
-    echo "- File structure changes"
-    echo "- Technical specifications"
-    echo "- Clear acceptance criteria"
-    echo "- Explicit scope boundaries"
-else
-    echo "❌ Failed to update project item"
-    echo "Check permissions and try again"
-    exit 1
-fi
+echo ""
+echo "✅ Task enhancement complete!"
+echo "📁 File location: $PROJECT_DIR/tasks.json"
 ```
+
+## Output
+
+Update the specified task in tasks.json with comprehensive enhancement including implementation details, context analysis, and clear scope boundaries.
 
 ## Enhancement Heuristics
 
-1. **Preserve original intent** - enhancement adds structure, not new requirements
-2. **Add missing context** - fill gaps in implementation details and technical specs
-3. **Follow existing patterns** - use established codebase conventions and structures
-4. **Clear scope boundaries** - explicitly define what is and isn't included
-5. **Granular acceptance criteria** - make success measurable and testable
-6. **Implementation specificity** - provide exact file and function details
-7. **Constraint awareness** - identify what should NOT be changed or rebuilt
-8. **Dependency identification** - call out blocking relationships clearly
-9. **Priority-based classification** - assign P0/P1/P2 based on impact and dependencies
-10. **Template consistency** - use standard format for all enhanced tasks
+1. **Preserve original scope** - enhancement adds detail, not functionality
+2. **Context-driven details** - use problem.json and technical.json for guidance
+3. **Structured approach** - menu-driven interface for specific enhancements
+4. **Granular updates** - update specific fields without losing other data
+5. **Version tracking** - automatic timestamp updates for audit trail
+6. **Editor fallback** - direct JSON editing for complex changes

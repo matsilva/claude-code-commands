@@ -1,18 +1,15 @@
 ---
-allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Bash(gh *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
+allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
 description: Break down feature into prioritized, actionable tasks with comprehensive context analysis
 ---
 
 ## Context
 
 - Current directory: !`pwd`
-- Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
-- GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
-- GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
+- Git repository: !`git remote -v 2>/dev/null | head -1 || echo "Not a git repository"`
+- Existing projects: !`ls -la .codeloops/ 2>/dev/null | grep "^d" | awk '{print $9}' | grep -v "^\." || echo "No existing projects"`
 - Codebase patterns: !`find . -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.md" | head -15`
 - Package files: !`find . -name "package.json" -o -name "Cargo.toml" -o -name "requirements.txt" -o -name "go.mod" | head -5`
-- Problem definition: Check existing "📋 Problem & Users" project item
-- Technical design: Check existing "🏗️ Technical Approach" project item
 
 ## Task
 
@@ -58,77 +55,127 @@ Each task must include:
 ## Output
 
 1. **Comprehensive context analysis** - full understanding of problem, technical approach, and codebase
-2. Create GitHub project item titled "📝 [Feature Name] - Tasks & Priority" with task breakdown overview
-3. **Create individual GitHub project items for EACH implementation task** with full specifications
+2. Create local JSON file at `.codeloops/<feature_or_task_or_bugfix>/tasks.json` with complete task breakdown
+3. **Include detailed task specifications** with full context analysis and implementation details
 4. Each task includes complete context analysis, specific implementation details, and clear scope boundaries
-5. Set Priority field for each task item
+5. Set priority levels (P0/P1/P2) and dependencies for each task
 
-## Comprehensive Workflow
+## JSON-Based Workflow
 
 ```bash
 # Validate arguments
 if [ -z "$ARGUMENTS" ]; then
-    echo "Error: Please provide feature name"
-    echo "Usage: plan-tasks <feature-name>"
-    echo "Example: plan-tasks 'User Authentication System'"
+    echo "Error: Please provide feature/task/bugfix name"
+    echo "Usage: plan-tasks <feature_or_task_or_bugfix>"
+    echo "Example: plan-tasks 'user-authentication-feature'"
     exit 1
 fi
 
-# Get project details
-PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number' 2>/dev/null)
-PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id' 2>/dev/null)
+# Sanitize feature name for directory
+FEATURE_NAME=$(echo "$ARGUMENTS" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
 
-# Validate GitHub authentication
-if ! gh auth status >/dev/null 2>&1; then
-    echo "Error: Not authenticated with GitHub"
-    echo "Run: gh auth login --with-token < ~/.config/gh/my_token.txt"
+# Check if project directory exists
+PROJECT_DIR=".codeloops/$FEATURE_NAME"
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "⚠️  Project directory does not exist: $PROJECT_DIR"
+    echo "Run 'plan-problem $FEATURE_NAME' first to create the project"
     exit 1
 fi
 
-# Add Priority field if not exists
-gh project field-create $PROJECT_ID --name "Priority" --type "single_select" --options "P0,P1,P2" 2>/dev/null || true
+# Check if problem.json exists (prerequisite)
+if [ ! -f "$PROJECT_DIR/problem.json" ]; then
+    echo "⚠️  Problem definition not found: $PROJECT_DIR/problem.json"
+    echo "Run 'plan-problem $FEATURE_NAME' first to define the problem"
+    exit 1
+fi
 
-echo "🔍 COMPREHENSIVE CONTEXT ANALYSIS FOR: $ARGUMENTS"
+# Check if technical.json exists (prerequisite)
+if [ ! -f "$PROJECT_DIR/technical.json" ]; then
+    echo "⚠️  Technical approach not found: $PROJECT_DIR/technical.json"
+    echo "Run 'plan-technical $FEATURE_NAME' first to define the technical approach"
+    exit 1
+fi
+
+# Check if tasks.json already exists
+if [ -f "$PROJECT_DIR/tasks.json" ]; then
+    echo "⚠️  Task breakdown already exists for '$FEATURE_NAME'"
+    echo "📄 Current content preview:"
+    head -20 "$PROJECT_DIR/tasks.json"
+    echo ""
+    echo "Choose action:"
+    echo "1. Continue to update existing tasks"
+    echo "2. Exit and use revise-tasks command instead"
+    read -p "Enter choice (1-2): " choice
+    
+    if [ "$choice" != "1" ]; then
+        echo "Exiting. Use 'revise-tasks $FEATURE_NAME' to modify existing tasks."
+        exit 0
+    fi
+fi
+
+echo "🔍 COMPREHENSIVE CONTEXT ANALYSIS FOR: $FEATURE_NAME"
 echo "=================================================="
 echo ""
 
 # 1. PROBLEM & USER CONTEXT ANALYSIS
 echo "📋 ANALYZING PROBLEM DEFINITION & USER CONTEXT"
 echo "----------------------------------------------"
-PROBLEM_DEFINITION=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json 2>/dev/null | \
-  jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem"))) | .content.body' || echo "")
 
-if [ -n "$PROBLEM_DEFINITION" ]; then
+# Read and parse problem.json
+echo "Reading problem definition from: $PROJECT_DIR/problem.json"
+PROBLEM_STATEMENT=$(jq -r '.problemStatement' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+WHY=$(jq -r '.why' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+SUCCESS_CRITERIA=$(jq -r '.successCriteria | join(", ")' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+CONSTRAINTS_TECHNICAL=$(jq -r '.constraints.technical' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+CONSTRAINTS_BUSINESS=$(jq -r '.constraints.business' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+CONSTRAINTS_SCOPE=$(jq -r '.constraints.scope' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+NON_GOALS=$(jq -r '.constraints.nonGoals' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+USER_COUNT=$(jq -r '.users | length' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "0")
+
+if [ -n "$PROBLEM_STATEMENT" ] && [ "$PROBLEM_STATEMENT" != "null" ]; then
   echo "✅ Found problem definition"
-  echo "Extracting user stories and success criteria..."
-  USER_STORIES=$(echo "$PROBLEM_DEFINITION" | grep -A 10 "User Stories" || echo "No user stories found")
-  SUCCESS_CRITERIA=$(echo "$PROBLEM_DEFINITION" | grep -A 10 "Success Criteria" || echo "No success criteria found")
-  CONSTRAINTS=$(echo "$PROBLEM_DEFINITION" | grep -A 10 "Constraints" || echo "No constraints found")
+  echo "Problem: $PROBLEM_STATEMENT"
+  echo "Why: $WHY"
+  echo "Users: $USER_COUNT personas defined"
+  echo "Success Criteria: $SUCCESS_CRITERIA"
+  echo "Technical Constraints: $CONSTRAINTS_TECHNICAL"
+  echo "Business Constraints: $CONSTRAINTS_BUSINESS"
+  echo "Scope: $CONSTRAINTS_SCOPE"
+  echo "Non-goals: $NON_GOALS"
 else
-  echo "⚠️  No problem definition found - create with plan-problem command first"
-  USER_STORIES="No user stories available"
-  SUCCESS_CRITERIA="No success criteria available"
-  CONSTRAINTS="No constraints available"
+  echo "⚠️  Problem definition appears incomplete"
+  echo "Please complete $PROJECT_DIR/problem.json before proceeding"
 fi
 echo ""
 
 # 2. TECHNICAL CONTEXT ANALYSIS
 echo "🏗️ ANALYZING TECHNICAL APPROACH & ARCHITECTURE"
 echo "----------------------------------------------"
-TECHNICAL_APPROACH=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json 2>/dev/null | \
-  jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical"))) | .content.body' || echo "")
 
-if [ -n "$TECHNICAL_APPROACH" ]; then
+# Read and parse technical.json
+echo "Reading technical approach from: $PROJECT_DIR/technical.json"
+LANGUAGE=$(jq -r '.technologyStack.language' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+FRAMEWORK=$(jq -r '.technologyStack.framework' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+DEPENDENCIES=$(jq -r '.technologyStack.dependencies | join(", ")' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+DATABASE=$(jq -r '.technologyStack.database' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+DATA_MODEL_COUNT=$(jq -r '.dataModels | length' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "0")
+API_ENDPOINT_COUNT=$(jq -r '.architecture.apiEndpoints | length' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "0")
+COMPONENTS=$(jq -r '.architecture.components | join(", ")' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+AUTH_METHOD=$(jq -r '.security.authentication' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+
+if [ -n "$LANGUAGE" ] && [ "$LANGUAGE" != "null" ]; then
   echo "✅ Found technical approach"
-  echo "Extracting technology stack and architecture..."
-  TECH_STACK=$(echo "$TECHNICAL_APPROACH" | grep -A 10 "Technology Stack" || echo "No tech stack found")
-  DATA_MODELS=$(echo "$TECHNICAL_APPROACH" | grep -A 10 "Data Models" || echo "No data models found")
-  ARCHITECTURE=$(echo "$TECHNICAL_APPROACH" | grep -A 10 "Architecture" || echo "No architecture found")
+  echo "Language: $LANGUAGE"
+  echo "Framework: $FRAMEWORK"
+  echo "Dependencies: $DEPENDENCIES"
+  echo "Database: $DATABASE"
+  echo "Data Models: $DATA_MODEL_COUNT defined"
+  echo "API Endpoints: $API_ENDPOINT_COUNT planned"
+  echo "Components: $COMPONENTS"
+  echo "Authentication: $AUTH_METHOD"
 else
-  echo "⚠️  No technical approach found - create with plan-technical command first"
-  TECH_STACK="No tech stack available"
-  DATA_MODELS="No data models available"
-  ARCHITECTURE="No architecture available"
+  echo "⚠️  Technical approach appears incomplete"
+  echo "Please complete $PROJECT_DIR/technical.json before proceeding"
 fi
 echo ""
 
@@ -225,165 +272,131 @@ if [ -f "docker-compose.yml" ] || [ -f "Dockerfile" ]; then
 fi
 
 echo ""
-echo "🎯 CONTEXT ANALYSIS COMPLETE - CREATING SPECIFIC TASKS"
+echo "🎯 CONTEXT ANALYSIS COMPLETE - CREATING TASK BREAKDOWN"
 echo "====================================================="
 echo ""
 
-# Create comprehensive task breakdown overview
-OVERVIEW_CONTENT="## Comprehensive Task Breakdown for $ARGUMENTS
+# Create comprehensive task breakdown JSON structure
+echo "📝 Creating task breakdown structure..."
 
-### 📋 Context Summary
-**Problem Definition:** $USER_STORIES
-**Success Criteria:** $SUCCESS_CRITERIA
-**Technical Stack:** $PROJECT_TYPE ($MAIN_LANGUAGE, $FRAMEWORK)
-**Architecture Patterns:** $API_PATTERNS, $DB_PATTERNS
-**Constraints:** $CONSTRAINTS
+# Create tasks.json with comprehensive context analysis
+cat > "$PROJECT_DIR/tasks.json" << 'EOF'
+{
+  "metadata": {
+    "created": "",
+    "updated": "",
+    "version": "1.0.0",
+    "featureName": ""
+  },
+  "contextAnalysis": {
+    "problemDefinition": "",
+    "technicalApproach": "",
+    "codebasePatterns": "",
+    "externalDocs": ""
+  },
+  "tasks": [],
+  "dependencies": []
+}
+EOF
 
-### 🎯 Task Breakdown Strategy
-Based on comprehensive analysis of:
-- Problem definition and user stories
-- Technical approach and architecture
-- Existing codebase patterns ($PROJECT_TYPE)
-- External documentation and configuration
-- Integration requirements and constraints
+# Update metadata and context analysis
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+jq --arg timestamp "$TIMESTAMP" \
+   --arg feature "$FEATURE_NAME" \
+   --arg problem "$PROBLEM_STATEMENT" \
+   --arg tech "$LANGUAGE/$FRAMEWORK" \
+   --arg patterns "$PROJECT_TYPE" \
+   --arg readme "$README_CONTENT" '
+  .metadata.created = $timestamp |
+  .metadata.updated = $timestamp |
+  .metadata.featureName = $feature |
+  .contextAnalysis.problemDefinition = $problem |
+  .contextAnalysis.technicalApproach = $tech |
+  .contextAnalysis.codebasePatterns = $patterns |
+  .contextAnalysis.externalDocs = $readme
+' "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
 
-### P0 Tasks (Must Have - Core Functionality)
-**Small batch work: 1-4 hours each, specific implementation details**
-
-### P1 Tasks (Should Have - Important Features)  
-**Well-scoped enhancements with clear boundaries**
-
-### P2 Tasks (Nice to Have - Future Enhancements)
-**Optional improvements with explicit scope limits**
-
-### Dependencies & Integration
-**Clear blocking relationships and integration points**
-
-### Implementation Guidance
-- Follow existing $MAIN_LANGUAGE patterns in codebase
-- Integrate with $FRAMEWORK architecture
-- Respect existing $API_PATTERNS and $DB_PATTERNS
-- Maintain consistency with current file structure
-- Consider $CONFIG_PATTERNS for deployment
-
----
-*Created on $(date) with comprehensive context analysis*
-*Each task includes specific implementation details and scope boundaries*"
-
-# Create the comprehensive task breakdown overview
-gh project item-create $PROJECT_NUMBER \
-  --owner "@me" \
-  --title "📝 $ARGUMENTS - Tasks & Priority" \
-  --body "$OVERVIEW_CONTENT"
-
-echo "📝 Created comprehensive task breakdown overview"
+echo "✅ Created task breakdown template at: $PROJECT_DIR/tasks.json"
 echo ""
-echo "🔨 CREATING INDIVIDUAL DETAILED TASKS"
-echo "====================================="
+echo "📝 Context Analysis Summary:"
+echo "Problem: $PROBLEM_STATEMENT"
+echo "Tech Stack: $LANGUAGE/$FRAMEWORK"
+echo "Project Type: $PROJECT_TYPE"
+echo "Success Criteria: $SUCCESS_CRITERIA"
 echo ""
-echo "Note: This example shows the task creation pattern."
-echo "In practice, create 3-7 specific tasks based on the actual feature requirements."
+echo "📋 Next steps:"
+echo "1. Open $PROJECT_DIR/tasks.json in your editor"
+echo "2. Add specific tasks based on the context analysis above"
+echo "3. Set priorities (P0/P1/P2) and dependencies for each task"
+echo "4. Use the enhance-task command to add more details to individual tasks"
+echo ""
+echo "📄 Complete project structure:"
+echo "$PROJECT_DIR/"
+echo "├── problem.json (✅ analyzed)"
+echo "├── technical.json (✅ analyzed)"
+echo "└── tasks.json (✅ created)"
 echo ""
 
-# Example P0 Task Creation (create actual tasks based on specific feature)
-TASK1_CONTENT="**Focused Scope:** [Specific implementation task based on problem definition analysis]
-
-**User Story:** [Extract from problem definition] As a [specific user], I want [specific goal], so that [clear benefit]
-
-**Context Analysis:**
-✅ **What Already Exists:**
-- Project Type: $PROJECT_TYPE with $MAIN_LANGUAGE
-- Framework: $FRAMEWORK with $API_PATTERNS
-- Database: $DB_PATTERNS
-- File Structure: $SRC_STRUCTURE
-- Configuration: $CONFIG_PATTERNS
-
-❌ **What's Missing:**
-- [Specific functionality gaps identified from technical approach]
-- [Required integrations not yet implemented]
-- [Missing data models or API endpoints]
-
-**File Structure Changes:**
-\`\`\`
-[Current structure]
-├── existing-file.ext (EXISTS)
-├── modified-file.ext (MODIFIED - add specific functionality)
-└── new-file.ext (NEW - create specific component)
-\`\`\`
-
-**Implementation Details:**
-- Create/modify specific files: [exact file paths]
-- Implement specific functions: [function signatures]
-- Add specific API endpoints: [exact routes and methods]
-- Database changes: [specific schema modifications]
-
-**Technical Specifications:**
-[Code examples following existing $MAIN_LANGUAGE patterns]
-\`\`\`
-// Example following detected patterns in codebase
-// Show actual implementation structure
-\`\`\`
-
-**Implementation Constraints:**
-❌ **Do NOT implement:**
-- [Features explicitly out of scope from problem definition]
-- [Changes that would break existing $API_PATTERNS]
-- [Modifications to core $FRAMEWORK architecture]
-- [Database changes outside defined scope]
-
-**External Dependencies:**
-- Required libraries: [specific versions]
-- External services: [APIs or services needed]
-- Configuration changes: [environment variables]
-
-**Integration Points:**
-- Existing APIs: [how this connects to current endpoints]
-- Database: [how this integrates with $DB_PATTERNS]
-- Frontend: [if applicable, how UI connects]
-
-**Acceptance Criteria:**
-- [ ] [Specific, testable condition based on success criteria]
-- [ ] [Integration with existing $FRAMEWORK patterns verified]
-- [ ] [Database changes work with $DB_PATTERNS]
-- [ ] [API endpoints follow $API_PATTERNS conventions]
-- [ ] [Code follows $MAIN_LANGUAGE best practices from codebase]
-
-**Success Definition:**
-[Clear description based on problem definition success criteria]
-
-**Out of Scope:**
-- [Explicit list from problem definition constraints]
-- [Features that would be separate P1/P2 tasks]
-- [Changes outside the 1-4 hour scope]
-
-**Batch Size:** 1-4 hours of focused work
-**Dependencies:** [List specific blocking tasks]
-**Priority:** P0 (Core functionality required for success criteria)"
-
-echo "Creating example detailed task structure..."
-echo "✅ Task template ready for actual feature-specific implementation"
+echo "💡 Task JSON Structure Guide:"
+echo "Each task in the tasks array should follow this structure:"
+echo '
+{
+  "id": "T1",
+  "title": "Implement user authentication API",
+  "description": "Create JWT-based authentication endpoints",
+  "priority": "P0",
+  "status": "pending",
+  "estimatedHours": 3,
+  "userStory": "As a user, I want to log in securely, so that I can access protected features",
+  "contextAnalysis": {
+    "whatExists": ["Express server", "Database connection"],
+    "whatsMissing": ["Auth middleware", "JWT handling", "Password hashing"]
+  },
+  "fileStructureChanges": {
+    "newFiles": ["src/auth/authController.ts", "src/middleware/auth.ts"],
+    "modifiedFiles": ["src/routes/index.ts", "src/types/user.ts"],
+    "movedFiles": []
+  },
+  "implementationDetails": {
+    "files": ["src/auth/authController.ts"],
+    "functions": ["login", "register", "validateToken"],
+    "apiEndpoints": ["/api/auth/login", "/api/auth/register"],
+    "databaseChanges": ["users table password_hash column"]
+  },
+  "technicalSpecifications": "Use bcrypt for password hashing, JWT for tokens",
+  "implementationConstraints": ["Do not modify existing user schema", "Maintain backward compatibility"],
+  "externalDependencies": ["bcrypt", "jsonwebtoken"],
+  "integrationPoints": ["User service", "Database layer"],
+  "acceptanceCriteria": ["Login returns valid JWT", "Invalid credentials rejected", "Token validates correctly"],
+  "successDefinition": "Users can authenticate and receive working JWT tokens",
+  "outOfScope": ["Password reset", "Social login", "Multi-factor auth"],
+  "dependencies": [],
+  "createdDate": "2024-01-01T00:00:00.000Z",
+  "updatedDate": "2024-01-01T00:00:00.000Z"
+}'
 
 echo ""
-echo "🎉 TASK BREAKDOWN COMPLETE"
-echo "========================="
+echo "🎉 TASK BREAKDOWN INITIALIZATION COMPLETE"
+echo "========================================"
 echo "✅ Comprehensive context analysis performed"
-echo "✅ Task breakdown overview created"
-echo "✅ Individual task template established"
+echo "✅ Task breakdown template created with full context"
+echo "✅ Ready for detailed task specification"
 echo ""
 echo "Next Steps:"
-echo "1. Review the task breakdown in your GitHub project"
-echo "2. Create specific tasks based on your actual feature requirements"
-echo "3. Start implementing P0 tasks in dependency order"
-echo "4. Use the established patterns for consistent task creation"
+echo "1. Edit $PROJECT_DIR/tasks.json to add specific tasks"
+echo "2. Use the context analysis above to inform your task creation"
+echo "3. Set appropriate priorities and dependencies"
+echo "4. Use enhance-task command for additional task details"
+echo "5. Start implementing P0 tasks in dependency order"
 ```
 
 ## Comprehensive Planning Heuristics
 
 1. **Context-driven analysis** - analyze ALL available context before creating tasks
-2. **Full integration** - leverage problem definition, technical approach, and codebase patterns
+2. **Local-first integration** - leverage problem.json and technical.json for comprehensive context
 3. **Specific implementation details** - include exact files, functions, API endpoints, and data models
 4. **Small batch sizing** - ensure each task is 1-4 hours of focused work
-5. **Clear scope boundaries** - explicit "Out of Scope" sections prevent feature creep
+5. **Clear scope boundaries** - explicit "outOfScope" sections prevent feature creep
 6. **Pattern consistency** - follow existing codebase conventions and architecture
 7. **Dependency awareness** - identify and call out blocking relationships clearly
 8. **External integration** - consider external docs, configuration, and deployment requirements
@@ -394,3 +407,15 @@ echo "4. Use the established patterns for consistent task creation"
 13. **Verification-ready** - include clear success definitions and testing approaches
 14. **Architecture-aware** - ensure tasks fit within existing system design
 15. **Documentation-informed** - use README and config files to understand deployment context
+16. **JSON-structured** - all task data stored in machine-readable format for automation
+17. **Prerequisites validation** - ensure problem.json and technical.json exist and are complete
+18. **Iterative refinement** - use revise-tasks and enhance-task commands for improvements
+
+## JSON Structure Benefits
+
+- **Machine-readable**: Tasks can be processed by tools and scripts
+- **Version controlled**: All planning data tracked in git with the code
+- **Offline-first**: No dependency on external services for planning
+- **Searchable**: Easy to find tasks by priority, status, or dependencies
+- **Extensible**: Can add new fields without breaking existing structure
+- **Integration-ready**: Other tools can read/write task data
