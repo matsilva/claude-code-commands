@@ -198,9 +198,8 @@ echo "└── tasks.json (pending)"
 5. **Security first** - validate all inputs, authorize all actions
 6. **Performance aware** - consider scale, caching, database efficiency
 7. **Priority-driven design** - focus on implementation order and dependencies, not timelines or schedules
-8. **Local-first approach** - technical approach stored locally for offline access and version control
-9. **Integration awareness** - reference problem.json for context and constraints
-10. **Structured data** - JSON format enables automation and tooling integration
+8. **Integration awareness** - reference problem.json for context and constraints
+9. **Structured data** - JSON format enables automation and tooling integration
 
 ## JSON Structure Guide
 

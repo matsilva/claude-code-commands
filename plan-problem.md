@@ -126,10 +126,9 @@ echo "└── tasks.json (pending)"
 4. **Scope tightly** - better to solve one problem well than many poorly
 5. **Use existing patterns** - research current codebase and similar solutions
 6. **Priority over time** - focus on what's most important, ignore temporal estimates and deadlines
-7. **Local-first approach** - all planning data is stored locally for offline access and version control
-8. **Structured data** - JSON format enables automation and integration with other tools
-9. **Iterative refinement** - use revise-problem command for updates and improvements
-10. **Project isolation** - each feature/task/bugfix gets its own .codeloops directory
+7. **Structured data** - JSON format enables automation and integration with other tools
+8. **Iterative refinement** - use revise-problem command for updates and improvements
+9. **Project isolation** - each feature/task/bugfix gets its own .codeloops directory
 
 ## JSON Structure Guide
 

@@ -1,20 +1,18 @@
 ---
-allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Bash(gh *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
-description: Execute a single implementation task from the GitHub Projects board
+allowed-tools: TodoWrite, TodoRead, Write, Read, Edit, MultiEdit, Bash(git *), Glob, Grep, LS, WebFetch, WebSearch, Task, mcp__codeloops__*
+description: Execute a single implementation task from local project files
 ---
 
 ## Context
 
 - Current directory: !`pwd`
-- Git repository: !`gh repo view --json name 2>/dev/null || echo "Not a GitHub repository"`
-- GitHub Projects: !`gh project list --owner="@me" 2>/dev/null || echo "No GitHub Projects found"`
-- GitHub auth: !`gh auth status 2>/dev/null || echo "Not authenticated - run: gh auth login --with-token < ~/.config/gh/my_token.txt"`
-- Next P0 task: !`gh project item-list $(gh project list --owner="@me" --format=json | jq -r '.[0].number') --owner="@me" --format=json | jq -r '.[] | select(.title | startswith("TASK-")) | select(.fieldValues.Priority == "P0") | "\(.title)"' | head -1`
-- Task details: !`gh project item-list $(gh project list --owner="@me" --format=json | jq -r '.[0].number') --owner="@me" --format=json | jq -r '.[] | select(.title | startswith("TASK-")) | select(.fieldValues.Priority == "P0") | .content.body' | head -1`
+- Git repository: !`git remote -v 2>/dev/null | head -1 || echo "Not a git repository"`
+- Existing projects: !`ls -la .codeloops/ 2>/dev/null | grep "^d" | awk '{print $9}' | grep -v "^\." || echo "No existing projects"`
+- Available tasks: !`find .codeloops -name "tasks.json" 2>/dev/null | wc -l | tr -d ' '` projects with task definitions
 
 ## Task
 
-Execute one specific task: $ARGUMENTS (or auto-pick next priority task)
+Execute one specific task: $ARGUMENTS (format: <project_name> [task_id] or auto-pick next priority task)
 
 **IMPORTANT: Work is executed by priority order only (P0 → P1 → P2). Ignore temporal pressure, deadlines, or time estimates. Focus on completing tasks properly based on dependencies and priority ranking.**
 
@@ -47,139 +45,224 @@ Single task execution workflow:
 
 ## Output
 
-Complete one specific task from start to finish, updating GitHub Projects status and implementing all acceptance criteria.
+Complete one specific task from start to finish, updating local task status and implementing all acceptance criteria.
 
 ## Single Task Workflow
 
 ```bash
-# Get project IDs
-PROJECT_NUMBER=$(gh project list --owner="@me" --format=json | jq -r '.[0].number')
-PROJECT_ID=$(gh project list --owner="@me" --format=json | jq -r '.[0].id')
-
-# Find specific task or auto-pick next P0
-if [[ "$ARGUMENTS" == TASK-* ]]; then
-  TASK_TITLE="$ARGUMENTS"
-else
-  TASK_TITLE=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
-    jq -r '.[] | select(.title | startswith("TASK-")) | select(.fieldValues.Priority == "P0") | .title' | \
-    head -1)
+# Validate .codeloops directory exists
+if [ ! -d ".codeloops" ]; then
+    echo "⚠️  No .codeloops directory found"
+    echo "Run 'plan-problem <feature_name>' first to create a project"
+    exit 1
 fi
 
-echo "Working on: $TASK_TITLE"
+# Parse arguments: <project_name> [task_id]
+if [ -z "$ARGUMENTS" ]; then
+    echo "📋 Available projects:"
+    ls -la .codeloops/ 2>/dev/null | grep "^d" | awk '{print "  - " $9}' | grep -v "^\.\."
+    echo ""
+    echo "Usage: execute <project_name> [task_id]"
+    echo "Example: execute user-authentication-feature T1"
+    echo "Example: execute user-authentication-feature  # auto-pick highest priority"
+    exit 1
+fi
+
+# Extract project name and optional task ID
+PROJECT_NAME=$(echo "$ARGUMENTS" | awk '{print $1}')
+TASK_ID=$(echo "$ARGUMENTS" | awk '{print $2}')
+
+# Sanitize project name
+PROJECT_NAME=$(echo "$PROJECT_NAME" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
+PROJECT_DIR=".codeloops/$PROJECT_NAME"
+
+# Validate project directory exists
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "⚠️  Project directory does not exist: $PROJECT_DIR"
+    echo "Available projects:"
+    ls -la .codeloops/ 2>/dev/null | grep "^d" | awk '{print "  - " $9}' | grep -v "^\.\."
+    exit 1
+fi
+
+# Validate required files exist
+if [ ! -f "$PROJECT_DIR/problem.json" ]; then
+    echo "⚠️  Problem definition not found: $PROJECT_DIR/problem.json"
+    echo "Run 'plan-problem $PROJECT_NAME' first"
+    exit 1
+fi
+
+if [ ! -f "$PROJECT_DIR/technical.json" ]; then
+    echo "⚠️  Technical approach not found: $PROJECT_DIR/technical.json"
+    echo "Run 'plan-technical $PROJECT_NAME' first"
+    exit 1
+fi
+
+if [ ! -f "$PROJECT_DIR/tasks.json" ]; then
+    echo "⚠️  Task breakdown not found: $PROJECT_DIR/tasks.json"
+    echo "Run 'plan-tasks $PROJECT_NAME' first"
+    exit 1
+fi
+
+echo "🎯 EXECUTING TASK FOR PROJECT: $PROJECT_NAME"
+echo "================================================"
+echo "Project directory: $PROJECT_DIR"
+echo ""
+
+# Find specific task or auto-pick next P0
+if [ -n "$TASK_ID" ]; then
+    # Use specified task ID
+    TASK=$(jq --arg task_id "$TASK_ID" '.tasks[] | select(.id == $task_id)' "$PROJECT_DIR/tasks.json")
+    if [ "$TASK" = "null" ] || [ -z "$TASK" ]; then
+        echo "⚠️  Task ID '$TASK_ID' not found in $PROJECT_DIR/tasks.json"
+        echo "Available tasks:"
+        jq -r '.tasks[] | "  - \(.id): \(.title) [\(.priority)] [\(.status)]"' "$PROJECT_DIR/tasks.json"
+        exit 1
+    fi
+else
+    # Auto-pick highest priority pending task
+    TASK=$(jq '.tasks[] | select(.status == "pending") | select(.priority == "P0")' "$PROJECT_DIR/tasks.json" | head -1)
+    if [ "$TASK" = "null" ] || [ -z "$TASK" ]; then
+        # Try P1 if no P0 tasks
+        TASK=$(jq '.tasks[] | select(.status == "pending") | select(.priority == "P1")' "$PROJECT_DIR/tasks.json" | head -1)
+        if [ "$TASK" = "null" ] || [ -z "$TASK" ]; then
+            # Try P2 if no P1 tasks
+            TASK=$(jq '.tasks[] | select(.status == "pending") | select(.priority == "P2")' "$PROJECT_DIR/tasks.json" | head -1)
+            if [ "$TASK" = "null" ] || [ -z "$TASK" ]; then
+                echo "⚠️  No pending tasks found in $PROJECT_DIR/tasks.json"
+                echo "Available tasks:"
+                jq -r '.tasks[] | "  - \(.id): \(.title) [\(.priority)] [\(.status)]"' "$PROJECT_DIR/tasks.json"
+                exit 1
+            fi
+        fi
+    fi
+    TASK_ID=$(echo "$TASK" | jq -r '.id')
+fi
+
+# Extract task details
+TASK_TITLE=$(echo "$TASK" | jq -r '.title')
+TASK_DESCRIPTION=$(echo "$TASK" | jq -r '.description')
+TASK_PRIORITY=$(echo "$TASK" | jq -r '.priority')
+TASK_STATUS=$(echo "$TASK" | jq -r '.status')
+USER_STORY=$(echo "$TASK" | jq -r '.userStory')
+ACCEPTANCE_CRITERIA=$(echo "$TASK" | jq -r '.acceptanceCriteria | join("\n- ")')
+OUT_OF_SCOPE=$(echo "$TASK" | jq -r '.outOfScope | join("\n- ")')
+
+echo "Selected task: $TASK_ID - $TASK_TITLE [$TASK_PRIORITY]"
+
+# Validate dependencies are met
+DEPENDENCIES=$(echo "$TASK" | jq -r '.dependencies[]?' 2>/dev/null)
+if [ -n "$DEPENDENCIES" ]; then
+    echo ""
+    echo "🔍 Checking task dependencies..."
+    for dep in $DEPENDENCIES; do
+        DEP_STATUS=$(jq -r --arg dep_id "$dep" '.tasks[] | select(.id == $dep_id) | .status' "$PROJECT_DIR/tasks.json")
+        if [ "$DEP_STATUS" != "completed" ]; then
+            echo "⚠️  Dependency $dep is not completed (status: $DEP_STATUS)"
+            echo "Complete dependency first before working on this task"
+            exit 1
+        else
+            echo "✅ Dependency $dep is completed"
+        fi
+    done
+fi
 
 # Create git branch with consistent naming convention
-BRANCH_NAME=$(echo "$TASK_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
-echo "Creating branch: $BRANCH_NAME"
+BRANCH_NAME=$(echo "$PROJECT_NAME-$TASK_ID" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+echo ""
+echo "🌿 Creating git branch: $BRANCH_NAME"
 
 # Ensure we're on main and up to date
 git checkout main
-git pull origin main
+git pull origin main 2>/dev/null || echo "⚠️  Could not pull from origin (working offline)"
 
 # Create and checkout new branch
 git checkout -b "$BRANCH_NAME"
 
-# Get task details
-TASK_ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
-  jq -r --arg title "$TASK_TITLE" '.[] | select(.title == $title) | .id')
+# Read project context files
+PROBLEM_DEFINITION=$(jq -r '.problemStatement' "$PROJECT_DIR/problem.json")
+WHY=$(jq -r '.why' "$PROJECT_DIR/problem.json")
+SUCCESS_CRITERIA=$(jq -r '.successCriteria | join(", ")' "$PROJECT_DIR/problem.json")
+CONSTRAINTS=$(jq -r '.constraints.technical' "$PROJECT_DIR/problem.json")
 
-TASK_BODY=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
-  jq -r --arg title "$TASK_TITLE" '.[] | select(.title == $title) | .content.body')
+TECH_LANGUAGE=$(jq -r '.technologyStack.language' "$PROJECT_DIR/technical.json")
+TECH_FRAMEWORK=$(jq -r '.technologyStack.framework' "$PROJECT_DIR/technical.json")
+TECH_DEPENDENCIES=$(jq -r '.technologyStack.dependencies | join(", ")' "$PROJECT_DIR/technical.json")
 
-# Get full context: problem definition and technical approach
-PROBLEM_DEFINITION=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
-  jq -r '.[] | select(.title | startswith("📋") and (.title | contains("Problem & Users"))) | .content.body' 2>/dev/null)
+# Update task status to in_progress
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+jq --arg task_id "$TASK_ID" --arg timestamp "$TIMESTAMP" '
+  (.tasks[] | select(.id == $task_id) | .status) = "in_progress" |
+  (.tasks[] | select(.id == $task_id) | .updatedDate) = $timestamp
+' "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
 
-TECHNICAL_APPROACH=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
-  jq -r '.[] | select(.title | startswith("🏗️") and (.title | contains("Technical Approach"))) | .content.body' 2>/dev/null)
-
-TASKS_OVERVIEW=$(gh project item-list $PROJECT_NUMBER --owner="@me" --format=json | \
-  jq -r '.[] | select(.title | startswith("📝") and (.title | contains("Tasks & Priority"))) | .content.body' 2>/dev/null)
-
+echo ""
 echo "🎯 FULL CONTEXT FOR IMPLEMENTATION"
 echo "===================================="
 echo ""
 
-if [ -n "$PROBLEM_DEFINITION" ]; then
-  echo "📋 ORIGINAL PROBLEM & USERS"
-  echo "============================"
-  echo "$PROBLEM_DEFINITION"
-  echo ""
-else
-  echo "⚠️  Problem definition not found - review planning documents"
-  echo ""
-fi
+echo "📋 ORIGINAL PROBLEM & USERS"
+echo "============================"
+echo "Problem: $PROBLEM_DEFINITION"
+echo "Why: $WHY"
+echo "Success Criteria: $SUCCESS_CRITERIA"
+echo "Technical Constraints: $CONSTRAINTS"
+echo ""
 
-if [ -n "$TECHNICAL_APPROACH" ]; then
-  echo "🏗️ TECHNICAL DESIGN"
-  echo "===================="
-  echo "$TECHNICAL_APPROACH"
-  echo ""
-else
-  echo "⚠️  Technical approach not found - review planning documents"
-  echo ""
-fi
-
-if [ -n "$TASKS_OVERVIEW" ]; then
-  echo "📝 TASK BREAKDOWN OVERVIEW"
-  echo "==========================="
-  echo "$TASKS_OVERVIEW"
-  echo ""
-fi
+echo "🏗️ TECHNICAL DESIGN"
+echo "===================="
+echo "Language: $TECH_LANGUAGE"
+echo "Framework: $TECH_FRAMEWORK"
+echo "Dependencies: $TECH_DEPENDENCIES"
+echo ""
 
 echo "🎯 CURRENT TASK DETAILS"
 echo "========================"
-echo "$TASK_BODY"
+echo "Task: $TASK_TITLE"
+echo "Description: $TASK_DESCRIPTION"
+echo "Priority: $TASK_PRIORITY"
+echo "User Story: $USER_STORY"
 echo ""
-echo "⚠️  SCOPE BOUNDARY CHECK ⚠️"
-echo "=============================="
-echo "Review the 'Out of Scope' section above and ensure you do NOT implement:"
-echo "- Any features listed as out of scope"
-echo "- Any functionality beyond acceptance criteria"
-echo "- Any 'nice to have' additions not explicitly required"
-echo "- Any technical improvements not specified in the task"
+echo "Acceptance Criteria:"
+echo "- $ACCEPTANCE_CRITERIA"
 echo ""
+
+if [ "$OUT_OF_SCOPE" != "null" ] && [ -n "$OUT_OF_SCOPE" ]; then
+    echo "⚠️  SCOPE BOUNDARY CHECK ⚠️"
+    echo "=============================="
+    echo "Do NOT implement the following (Out of Scope):"
+    echo "- $OUT_OF_SCOPE"
+    echo ""
+fi
+
 echo "📚 IMPLEMENTATION GUIDANCE"
 echo "==========================="
 echo "- Follow the technical design patterns and architecture above"
 echo "- Keep the original problem and users in mind while implementing"
 echo "- Ensure your solution fits within the broader system design"
 echo "- Stick strictly to the acceptance criteria and nothing more"
-echo "- Reference the task breakdown overview to understand dependencies"
+echo "- Review task breakdown overview to understand dependencies"
 echo ""
 
-# Move to In Progress (Note: Field operations may require project admin access)
-STATUS_FIELD_ID=$(gh project field-list $PROJECT_ID --format=json 2>/dev/null | \
-  jq -r '.[] | select(.name=="Status") | .id' || echo "")
-
-if [ -n "$STATUS_FIELD_ID" ] && [ -n "$TASK_ITEM_ID" ]; then
-  gh project item-edit --id $TASK_ITEM_ID --field-id $STATUS_FIELD_ID \
-    --project-id $PROJECT_ID --single-select-option-id "In Progress" 2>/dev/null || \
-    echo "Status update failed - continuing with implementation"
-else
-  echo "Status field not found or not accessible - task status in project item content"
-fi
-
-echo "Task moved to In Progress. Ready to implement!"
-
-# After implementation, move to Done:
-# if [ -n "$STATUS_FIELD_ID" ] && [ -n "$TASK_ITEM_ID" ]; then
-#   gh project item-edit --id $TASK_ITEM_ID --field-id $STATUS_FIELD_ID \
-#     --project-id $PROJECT_ID --single-select-option-id "Done"
-# fi
+echo "✅ Task moved to 'in_progress'. Ready to implement!"
+echo ""
+echo "💡 After implementation, run:"
+echo "   jq '(.tasks[] | select(.id == \"$TASK_ID\") | .status) = \"completed\"' $PROJECT_DIR/tasks.json > tmp && mv tmp $PROJECT_DIR/tasks.json"
 ```
 
-## Single Task Heuristics
+## Local Task Execution Heuristics
 
-1. **Context first** - always review problem definition and technical design before coding
-2. **One task, done well** - focus completely on current task until completion
-3. **Priority-driven execution** - work strictly by priority order (P0 → P1 → P2), ignore time pressure
-4. **Follow acceptance criteria exactly** - implement exactly what's defined, no more, no less
-5. **Respect scope boundaries** - strictly avoid anything in "Out of Scope" section
-6. **Design alignment** - ensure implementation follows the technical approach and architecture
-7. **Problem awareness** - keep original user needs and problem statement in mind
-8. **Dependencies first** - ensure all blocking tasks are truly complete
-9. **Completion over speed** - focus on finishing tasks properly, not meeting deadlines
-10. **Test as you go** - validate each acceptance criterion as you implement
-11. **Status transparency** - keep GitHub Projects updated with real progress
-12. **No feature creep** - resist urge to add "helpful" features not in acceptance criteria
-13. **Ask for help early** - if blocked, update status and seek assistance
+1. **Local-first workflow** - all planning and task data stored locally with the code
+2. **Context first** - always review problem definition and technical design before coding
+3. **One task, done well** - focus completely on current task until completion
+4. **Priority-driven execution** - work strictly by priority order (P0 → P1 → P2), ignore time pressure
+5. **Follow acceptance criteria exactly** - implement exactly what's defined, no more, no less
+6. **Respect scope boundaries** - strictly avoid anything in "Out of Scope" section
+7. **Design alignment** - ensure implementation follows the technical approach and architecture
+8. **Problem awareness** - keep original user needs and problem statement in mind
+9. **Dependencies first** - ensure all blocking tasks are truly complete
+10. **Completion over speed** - focus on finishing tasks properly, not meeting deadlines
+11. **Test as you go** - validate each acceptance criterion as you implement
+12. **Status transparency** - keep local JSON files updated with real progress
+13. **No feature creep** - resist urge to add "helpful" features not in acceptance criteria
+14. **Version controlled planning** - all task data tracked in git with the code
+15. **Project isolation** - each feature/task/bugfix maintains separate planning files
