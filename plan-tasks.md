@@ -22,6 +22,7 @@ Break down implementation plan for: $ARGUMENTS
 Create comprehensive task breakdown with full context integration:
 
 ### Context Analysis Strategy
+
 1. **Problem & User Context** - Extract user stories, success criteria, and constraints from problem definition
 2. **Technical Context** - Leverage architecture, data models, and tech stack from technical approach
 3. **Codebase Context** - Analyze existing patterns, file structures, naming conventions, and dependencies
@@ -30,7 +31,9 @@ Create comprehensive task breakdown with full context integration:
 6. **Scope Context** - Define clear boundaries of what IS and IS NOT included
 
 ### Task Specification Requirements
+
 Each task must include:
+
 - **Focused Scope:** Single-sentence summary of exactly what this task accomplishes
 - **User Story:** "As a [user], I want [goal], so that [benefit]" from problem definition
 - **Context Analysis:** What already exists vs what's missing, based on full codebase analysis
@@ -48,8 +51,9 @@ Each task must include:
 - **Priority:** P0/P1/P2 based on user impact and dependencies
 
 ### Priority Guidelines
+
 - **P0 (Must Have):** Core functionality, blocks other work, user-critical features
-- **P1 (Should Have):** Important but not blocking, clear user value, enhances core features  
+- **P1 (Should Have):** Important but not blocking, clear user value, enhances core features
 - **P2 (Nice to Have):** Polish, optimization, future enhancements, non-critical features
 
 ## Output
@@ -106,7 +110,7 @@ if [ -f "$PROJECT_DIR/tasks.json" ]; then
     echo "1. Continue to update existing tasks"
     echo "2. Exit and use revise-tasks command instead"
     read -p "Enter choice (1-2): " choice
-    
+
     if [ "$choice" != "1" ]; then
         echo "Exiting. Use 'revise-tasks $FEATURE_NAME' to modify existing tasks."
         exit 0
@@ -184,67 +188,44 @@ echo "💻 ANALYZING EXISTING CODEBASE PATTERNS"
 echo "--------------------------------------"
 echo "Analyzing file structure and patterns..."
 
-# Detect project type and patterns
-PROJECT_TYPE="unknown"
-MAIN_LANGUAGE="unknown"
-FRAMEWORK="unknown"
+# NOTE: Project type detection now handled by LLM analysis - see instructions above
+PROJECT_TYPE="dynamically_discovered"
+MAIN_LANGUAGE="dynamically_discovered"
+FRAMEWORK="dynamically_discovered"
 
-if [ -f "package.json" ]; then
-  PROJECT_TYPE="javascript/typescript"
-  echo "✅ Found JavaScript/TypeScript project"
-  FRAMEWORK=$(cat package.json | jq -r '.dependencies | keys[]' | grep -E 'react|vue|angular|express|next' | head -1 || echo "vanilla")
-  if find . -name "*.ts" -not -path "./node_modules/*" | head -1 >/dev/null 2>&1; then
-    MAIN_LANGUAGE="typescript"
-  else
-    MAIN_LANGUAGE="javascript"
-  fi
-elif [ -f "Cargo.toml" ]; then
-  PROJECT_TYPE="rust"
-  MAIN_LANGUAGE="rust"
-  echo "✅ Found Rust project"
-elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
-  PROJECT_TYPE="python"
-  MAIN_LANGUAGE="python"
-  echo "✅ Found Python project"
-elif [ -f "go.mod" ]; then
-  PROJECT_TYPE="go"
-  MAIN_LANGUAGE="go"
-  echo "✅ Found Go project"
-fi
-
-# Analyze directory structure
-SRC_STRUCTURE=""
-if [ -d "src" ]; then
-  SRC_STRUCTURE=$(find src -type d | head -10 | sed 's/^/  /')
-  echo "✅ Found src/ directory structure:"
-  echo "$SRC_STRUCTURE"
-fi
-
-# Analyze existing API patterns
-API_PATTERNS=""
-if find . -name "*.ts" -o -name "*.js" | xargs grep -l "app\." 2>/dev/null | head -1 >/dev/null; then
-  API_PATTERNS="Express.js patterns detected"
-  echo "✅ Found Express.js API patterns"
-elif find . -name "*.py" | xargs grep -l "FastAPI\|@app\." 2>/dev/null | head -1 >/dev/null; then
-  API_PATTERNS="FastAPI patterns detected"
-  echo "✅ Found FastAPI patterns"
-elif find . -name "*.rs" | xargs grep -l "actix\|warp" 2>/dev/null | head -1 >/dev/null; then
-  API_PATTERNS="Rust web framework detected"
-  echo "✅ Found Rust web framework patterns"
-fi
-
-# Analyze database patterns
-DB_PATTERNS=""
-if find . -name "*.sql" 2>/dev/null | head -1 >/dev/null; then
-  DB_PATTERNS="SQL database patterns"
-  echo "✅ Found SQL database files"
-elif find . -name "*.ts" -o -name "*.js" | xargs grep -l "mongoose\|Schema" 2>/dev/null | head -1 >/dev/null; then
-  DB_PATTERNS="MongoDB/Mongoose patterns"
-  echo "✅ Found MongoDB patterns"
-elif find . -name "*.py" | xargs grep -l "SQLAlchemy\|models.Model" 2>/dev/null | head -1 >/dev/null; then
-  DB_PATTERNS="SQLAlchemy patterns"
-  echo "✅ Found SQLAlchemy patterns"
-fi
+echo "🔍 CODEBASE CONTEXT DISCOVERY INSTRUCTIONS"
+echo "=========================================="
+echo "CRITICAL: LLM must perform comprehensive codebase analysis to discover:"
+echo ""
+echo "📁 PROJECT STRUCTURE & PATTERNS"
+echo "- Programming language and version"
+echo "- Framework/runtime (Express, React, FastAPI, Django, etc.)"
+echo "- Project type (web app, API service, CLI tool, library)"
+echo "- File organization patterns (monorepo, microservices, MVC, clean architecture)"
+echo "- Directory structure and naming conventions"
+echo ""
+echo "🏗️ ARCHITECTURE & DESIGN PATTERNS"
+echo "- API patterns (REST, GraphQL, gRPC)"
+echo "- Authentication/authorization patterns"
+echo "- Data access patterns (ORM, query builders, raw queries)"
+echo "- Dependency injection patterns"
+echo "- Error handling and validation patterns"
+echo "- Testing patterns and frameworks"
+echo ""
+echo "🛠️ INFRASTRUCTURE & TOOLING"
+echo "- Database type and ORM/ODM"
+echo "- Build tools and package managers"
+echo "- Configuration management patterns"
+echo "- Deployment and containerization"
+echo "- Monitoring and logging patterns"
+echo ""
+echo "🎯 ANALYSIS APPROACH"
+echo "- Examine package.json, requirements.txt, Cargo.toml, go.mod for dependencies"
+echo "- Review directory structure and file naming patterns"
+echo "- Analyze existing code for architectural patterns and conventions"
+echo "- Identify database schemas, migration patterns, and data models"
+echo "- Understand existing API endpoints and routing patterns"
+echo "- Review configuration files, environment variables, and deployment configs"
 
 echo ""
 
@@ -304,15 +285,13 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
 jq --arg timestamp "$TIMESTAMP" \
    --arg feature "$FEATURE_NAME" \
    --arg problem "$PROBLEM_STATEMENT" \
-   --arg tech "$LANGUAGE/$FRAMEWORK" \
-   --arg patterns "$PROJECT_TYPE" \
    --arg readme "$README_CONTENT" '
   .metadata.created = $timestamp |
   .metadata.updated = $timestamp |
   .metadata.featureName = $feature |
   .contextAnalysis.problemDefinition = $problem |
-  .contextAnalysis.technicalApproach = $tech |
-  .contextAnalysis.codebasePatterns = $patterns |
+  .contextAnalysis.technicalApproach = "To be discovered by LLM analysis" |
+  .contextAnalysis.codebasePatterns = "To be discovered by LLM analysis" |
   .contextAnalysis.externalDocs = $readme
 ' "$PROJECT_DIR/tasks.json" > "$PROJECT_DIR/tasks.json.tmp" && mv "$PROJECT_DIR/tasks.json.tmp" "$PROJECT_DIR/tasks.json"
 
@@ -320,8 +299,8 @@ echo "✅ Created task breakdown template at: $PROJECT_DIR/tasks.json"
 echo ""
 echo "📝 Context Analysis Summary:"
 echo "Problem: $PROBLEM_STATEMENT"
-echo "Tech Stack: $LANGUAGE/$FRAMEWORK"
-echo "Project Type: $PROJECT_TYPE"
+echo "Tech Stack: [To be discovered by LLM analysis]"
+echo "Project Type: [To be discovered by LLM analysis]"
 echo "Success Criteria: $SUCCESS_CRITERIA"
 echo ""
 echo "📋 Next steps:"
@@ -346,8 +325,8 @@ echo '
   "description": "Create JWT-based authentication endpoints",
   "priority": "P0",
   "status": "pending",
-  "estimatedHours": 3,
   "userStory": "As a user, I want to log in securely, so that I can access protected features",
+  "levelOfEffort": 3, // fibinacci sequence value up to 21 to indicate level of effort for the task.
   "contextAnalysis": {
     "whatExists": ["Express server", "Database connection"],
     "whatsMissing": ["Auth middleware", "JWT handling", "Password hashing"]

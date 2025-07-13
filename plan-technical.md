@@ -96,38 +96,43 @@ echo "🏗️ Creating technical approach for: $FEATURE_NAME"
 echo "Project directory: $PROJECT_DIR"
 echo ""
 
-# Analyze codebase for patterns
-echo "🔍 Analyzing existing codebase patterns..."
-PROJECT_TYPE="unknown"
-MAIN_LANGUAGE="unknown"
-FRAMEWORK="unknown"
-
-if [ -f "package.json" ]; then
-    PROJECT_TYPE="javascript/typescript"
-    echo "✅ Detected JavaScript/TypeScript project"
-    FRAMEWORK=$(cat package.json | jq -r '.dependencies | keys[]' 2>/dev/null | grep -E 'react|vue|angular|express|next|fastify' | head -1 || echo "vanilla")
-    if find . -name "*.ts" -not -path "./node_modules/*" | head -1 >/dev/null 2>&1; then
-        MAIN_LANGUAGE="typescript"
-    else
-        MAIN_LANGUAGE="javascript"
-    fi
-elif [ -f "Cargo.toml" ]; then
-    PROJECT_TYPE="rust"
-    MAIN_LANGUAGE="rust"
-    echo "✅ Detected Rust project"
-elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
-    PROJECT_TYPE="python"
-    MAIN_LANGUAGE="python"
-    echo "✅ Detected Python project"
-elif [ -f "go.mod" ]; then
-    PROJECT_TYPE="go"
-    MAIN_LANGUAGE="go"
-    echo "✅ Detected Go project"
-fi
-
-echo "Language: $MAIN_LANGUAGE"
-echo "Framework: $FRAMEWORK"
+# CODEBASE ANALYSIS INSTRUCTIONS FOR LLM
+echo "🔍 CODEBASE CONTEXT DISCOVERY INSTRUCTIONS"
+echo "=========================================="
+echo "CRITICAL: LLM must perform comprehensive codebase analysis to discover:"
 echo ""
+echo "📁 TECHNOLOGY STACK & PROJECT TYPE"
+echo "- Programming language and version (JavaScript, TypeScript, Python, Rust, Go, etc.)"
+echo "- Framework/runtime (Express, React, FastAPI, Django, Actix, etc.)"
+echo "- Project type (web app, API service, CLI tool, library, microservice)"
+echo "- Package manager and dependency patterns"
+echo ""
+echo "🏗️ ARCHITECTURAL PATTERNS"
+echo "- Code organization (monorepo, microservices, MVC, clean architecture)"
+echo "- File and directory naming conventions"
+echo "- Import/export patterns and module structure"
+echo "- Dependency injection and inversion of control patterns"
+echo ""
+echo "🛠️ EXISTING INFRASTRUCTURE"
+echo "- Database type and ORM/ODM patterns"
+echo "- Authentication and authorization mechanisms"
+echo "- API design patterns (REST, GraphQL, gRPC)"
+echo "- Configuration management and environment handling"
+echo "- Testing frameworks and patterns"
+echo "- Build tools and deployment configurations"
+echo ""
+echo "🎯 ANALYSIS APPROACH"
+echo "- Examine manifest files (package.json, requirements.txt, Cargo.toml, go.mod)"
+echo "- Review directory structure and existing code organization"
+echo "- Identify established patterns for data models, validation, error handling"
+echo "- Understand existing API endpoints and routing conventions"
+echo "- Analyze configuration files and deployment patterns"
+echo ""
+
+# NOTE: Technology detection now handled by LLM analysis - see instructions above
+PROJECT_TYPE="dynamically_discovered"
+MAIN_LANGUAGE="dynamically_discovered" 
+FRAMEWORK="dynamically_discovered"
 
 # Create technical.json structure with detected patterns
 cat > "$PROJECT_DIR/technical.json" << 'EOF'
@@ -161,17 +166,13 @@ cat > "$PROJECT_DIR/technical.json" << 'EOF'
 }
 EOF
 
-# Update metadata and detected tech stack
+# Update metadata (tech stack will be filled by LLM based on analysis)
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
 jq --arg timestamp "$TIMESTAMP" \
-   --arg feature "$FEATURE_NAME" \
-   --arg language "$MAIN_LANGUAGE" \
-   --arg framework "$FRAMEWORK" '
+   --arg feature "$FEATURE_NAME" '
   .metadata.created = $timestamp |
   .metadata.updated = $timestamp |
-  .metadata.featureName = $feature |
-  .technologyStack.language = $language |
-  .technologyStack.framework = $framework
+  .metadata.featureName = $feature
 ' "$PROJECT_DIR/technical.json" > "$PROJECT_DIR/technical.json.tmp" && mv "$PROJECT_DIR/technical.json.tmp" "$PROJECT_DIR/technical.json"
 
 echo "✅ Created technical approach template at: $PROJECT_DIR/technical.json"
