@@ -15,54 +15,47 @@ description: Break down feature into prioritized, actionable tasks with comprehe
 
 Break down implementation plan for: $ARGUMENTS
 
-**IMPORTANT: Analyze ALL available context - problem definition, technical approach, codebase patterns, external docs, and dependencies. Create specific, actionable tasks with detailed implementation guidance.**
+**IMPORTANT: Perform comprehensive codebase analysis to understand existing patterns before creating tasks. Create specific, actionable tasks with detailed implementation guidance.**
 
 **CRITICAL: Each task must be small batch (1-4 hours), have clear scope boundaries with explicit "Out of Scope" sections, and include specific file changes, API endpoints, and constraints.**
 
-Create comprehensive task breakdown with full context integration:
+### Task Creation Approach
 
-### Context Analysis Strategy
+**LLM MUST perform comprehensive codebase analysis to create contextually appropriate tasks:**
 
-1. **Problem & User Context** - Extract user stories, success criteria, and constraints from problem definition
-2. **Technical Context** - Leverage architecture, data models, and tech stack from technical approach
-3. **Codebase Context** - Analyze existing patterns, file structures, naming conventions, and dependencies
-4. **External Context** - Review README, docs, configuration files for additional constraints
-5. **Integration Context** - Identify existing systems, APIs, and components that must be preserved
-6. **Scope Context** - Define clear boundaries of what IS and IS NOT included
+1. **Dynamic Context Discovery** - Analyze codebase patterns, architecture, existing conventions
+2. **Problem-Driven Tasks** - Extract user stories and acceptance criteria from problem definition  
+3. **Technical Integration** - Ensure tasks align with established technical approach
+4. **Dependency Management** - Identify blocking relationships and proper sequencing
+5. **Scope Definition** - Clear boundaries of what IS and IS NOT included per task
 
-### Task Specification Requirements
+### Required Task Structure
 
 Each task must include:
-
-- **Focused Scope:** Single-sentence summary of exactly what this task accomplishes
-- **User Story:** "As a [user], I want [goal], so that [benefit]" from problem definition
-- **Context Analysis:** What already exists vs what's missing, based on full codebase analysis
-- **File Structure Changes:** Explicit before/after showing NEW/MODIFIED/MOVED files with paths
-- **Implementation Details:** Exact files, functions, components, API endpoints to create/modify
-- **Technical Specifications:** Code patterns, data structures, schemas following existing conventions
-- **Implementation Constraints:** Clear list of what NOT to change or reimplement
-- **External Dependencies:** Required libraries, services, or external integrations
-- **Integration Points:** How this connects to existing systems and components
-- **Acceptance Criteria:** Granular, testable conditions (not high-level outcomes)
-- **Success Definition:** Clear definition of what completion looks like and how to verify
-- **Out of Scope:** Explicit boundaries listing what NOT to implement
-- **Batch Size:** Ensure 1-4 hours of focused work per task
-- **Dependencies:** What must be completed first
-- **Priority:** P0/P1/P2 based on user impact and dependencies
-
-### Priority Guidelines
-
-- **P0 (Must Have):** Core functionality, blocks other work, user-critical features
-- **P1 (Should Have):** Important but not blocking, clear user value, enhances core features
-- **P2 (Nice to Have):** Polish, optimization, future enhancements, non-critical features
+- **id**: Unique identifier (T1, T2, T3, etc.)
+- **title**: Clear, actionable task name
+- **description**: Detailed description of what needs to be done
+- **priority**: P0 (Must Have) | P1 (Should Have) | P2 (Nice to Have)
+- **status**: "pending"
+- **userStory**: "As a [user], I want [goal], so that [benefit]"
+- **levelOfEffort**: Fibonacci number (1, 2, 3, 5, 8, 13, 21) indicating complexity
+- **contextAnalysis**: What exists vs what's missing
+- **fileStructureChanges**: Files to create/modify/move
+- **implementationDetails**: Specific files, functions, API endpoints
+- **technicalSpecifications**: Code patterns, data structures, schemas
+- **implementationConstraints**: What NOT to change
+- **externalDependencies**: Required libraries, services
+- **integrationPoints**: Existing systems affected
+- **acceptanceCriteria**: Testable conditions
+- **successDefinition**: How to verify completion
+- **outOfScope**: What NOT to implement
+- **dependencies**: Other task IDs that must complete first
+- **createdDate**: ISO timestamp
+- **updatedDate**: ISO timestamp
 
 ## Output
 
-1. **Comprehensive context analysis** - full understanding of problem, technical approach, and codebase
-2. Create local JSON file at `.codeloops/<feature_or_task_or_bugfix>/tasks.json` with complete task breakdown
-3. **Include detailed task specifications** with full context analysis and implementation details
-4. Each task includes complete context analysis, specific implementation details, and clear scope boundaries
-5. Set priority levels (P0/P1/P2) and dependencies for each task
+Create local JSON file at `.codeloops/<feature_or_task_or_bugfix>/tasks.json` with comprehensive task breakdown based on dynamic codebase analysis.
 
 ## JSON-Based Workflow
 
@@ -110,91 +103,20 @@ if [ -f "$PROJECT_DIR/tasks.json" ]; then
     echo "1. Continue to update existing tasks"
     echo "2. Exit and use revise-tasks command instead"
     read -p "Enter choice (1-2): " choice
-
+    
     if [ "$choice" != "1" ]; then
         echo "Exiting. Use 'revise-tasks $FEATURE_NAME' to modify existing tasks."
         exit 0
     fi
 fi
 
-echo "🔍 COMPREHENSIVE CONTEXT ANALYSIS FOR: $FEATURE_NAME"
-echo "=================================================="
+echo "📋 CREATING TASK BREAKDOWN FOR: $FEATURE_NAME"
+echo "============================================="
+echo "Project directory: $PROJECT_DIR"
 echo ""
 
-# 1. PROBLEM & USER CONTEXT ANALYSIS
-echo "📋 ANALYZING PROBLEM DEFINITION & USER CONTEXT"
-echo "----------------------------------------------"
-
-# Read and parse problem.json
-echo "Reading problem definition from: $PROJECT_DIR/problem.json"
-PROBLEM_STATEMENT=$(jq -r '.problemStatement' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-WHY=$(jq -r '.why' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-SUCCESS_CRITERIA=$(jq -r '.successCriteria | join(", ")' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-CONSTRAINTS_TECHNICAL=$(jq -r '.constraints.technical' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-CONSTRAINTS_BUSINESS=$(jq -r '.constraints.business' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-CONSTRAINTS_SCOPE=$(jq -r '.constraints.scope' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-NON_GOALS=$(jq -r '.constraints.nonGoals' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
-USER_COUNT=$(jq -r '.users | length' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "0")
-
-if [ -n "$PROBLEM_STATEMENT" ] && [ "$PROBLEM_STATEMENT" != "null" ]; then
-  echo "✅ Found problem definition"
-  echo "Problem: $PROBLEM_STATEMENT"
-  echo "Why: $WHY"
-  echo "Users: $USER_COUNT personas defined"
-  echo "Success Criteria: $SUCCESS_CRITERIA"
-  echo "Technical Constraints: $CONSTRAINTS_TECHNICAL"
-  echo "Business Constraints: $CONSTRAINTS_BUSINESS"
-  echo "Scope: $CONSTRAINTS_SCOPE"
-  echo "Non-goals: $NON_GOALS"
-else
-  echo "⚠️  Problem definition appears incomplete"
-  echo "Please complete $PROJECT_DIR/problem.json before proceeding"
-fi
-echo ""
-
-# 2. TECHNICAL CONTEXT ANALYSIS
-echo "🏗️ ANALYZING TECHNICAL APPROACH & ARCHITECTURE"
-echo "----------------------------------------------"
-
-# Read and parse technical.json
-echo "Reading technical approach from: $PROJECT_DIR/technical.json"
-LANGUAGE=$(jq -r '.technologyStack.language' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
-FRAMEWORK=$(jq -r '.technologyStack.framework' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
-DEPENDENCIES=$(jq -r '.technologyStack.dependencies | join(", ")' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
-DATABASE=$(jq -r '.technologyStack.database' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
-DATA_MODEL_COUNT=$(jq -r '.dataModels | length' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "0")
-API_ENDPOINT_COUNT=$(jq -r '.architecture.apiEndpoints | length' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "0")
-COMPONENTS=$(jq -r '.architecture.components | join(", ")' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
-AUTH_METHOD=$(jq -r '.security.authentication' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
-
-if [ -n "$LANGUAGE" ] && [ "$LANGUAGE" != "null" ]; then
-  echo "✅ Found technical approach"
-  echo "Language: $LANGUAGE"
-  echo "Framework: $FRAMEWORK"
-  echo "Dependencies: $DEPENDENCIES"
-  echo "Database: $DATABASE"
-  echo "Data Models: $DATA_MODEL_COUNT defined"
-  echo "API Endpoints: $API_ENDPOINT_COUNT planned"
-  echo "Components: $COMPONENTS"
-  echo "Authentication: $AUTH_METHOD"
-else
-  echo "⚠️  Technical approach appears incomplete"
-  echo "Please complete $PROJECT_DIR/technical.json before proceeding"
-fi
-echo ""
-
-# 3. CODEBASE CONTEXT ANALYSIS
-echo "💻 ANALYZING EXISTING CODEBASE PATTERNS"
-echo "--------------------------------------"
-echo "Analyzing file structure and patterns..."
-
-# NOTE: Project type detection now handled by LLM analysis - see instructions above
-PROJECT_TYPE="dynamically_discovered"
-MAIN_LANGUAGE="dynamically_discovered"
-FRAMEWORK="dynamically_discovered"
-
-echo "🔍 CODEBASE CONTEXT DISCOVERY INSTRUCTIONS"
-echo "=========================================="
+echo "🔍 CODEBASE CONTEXT DISCOVERY (Required)"
+echo "========================================"
 echo "CRITICAL: LLM must perform comprehensive codebase analysis to discover:"
 echo ""
 echo "📁 PROJECT STRUCTURE & PATTERNS"
@@ -219,48 +141,44 @@ echo "- Configuration management patterns"
 echo "- Deployment and containerization"
 echo "- Monitoring and logging patterns"
 echo ""
-echo "🎯 ANALYSIS APPROACH"
-echo "- Examine package.json, requirements.txt, Cargo.toml, go.mod for dependencies"
-echo "- Review directory structure and file naming patterns"
-echo "- Analyze existing code for architectural patterns and conventions"
-echo "- Identify database schemas, migration patterns, and data models"
-echo "- Understand existing API endpoints and routing patterns"
-echo "- Review configuration files, environment variables, and deployment configs"
-
+echo "🎯 PROJECT CONTEXT ANALYSIS"
+echo "- Review problem.json for user stories and success criteria"
+echo "- Analyze technical.json for architecture and data models"
+echo "- Understand existing systems that must be preserved"
+echo "- Identify integration points and external dependencies"
 echo ""
 
-# 4. EXTERNAL DOCUMENTATION ANALYSIS
-echo "📚 ANALYZING EXTERNAL DOCUMENTATION"
-echo "----------------------------------"
+# Read project context files
+PROBLEM_STATEMENT=""
+WHY=""
+SUCCESS_CRITERIA=""
+if [ -f "$PROJECT_DIR/problem.json" ]; then
+    PROBLEM_STATEMENT=$(jq -r '.problemStatement' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+    WHY=$(jq -r '.why' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+    SUCCESS_CRITERIA=$(jq -r '.successCriteria | join(", ")' "$PROJECT_DIR/problem.json" 2>/dev/null || echo "")
+fi
+
+TECH_LANGUAGE=""
+TECH_FRAMEWORK=""
+if [ -f "$PROJECT_DIR/technical.json" ]; then
+    TECH_LANGUAGE=$(jq -r '.technologyStack.language' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+    TECH_FRAMEWORK=$(jq -r '.technologyStack.framework' "$PROJECT_DIR/technical.json" 2>/dev/null || echo "")
+fi
+
 README_CONTENT=""
 if [ -f "README.md" ]; then
-  echo "✅ Found README.md"
-  README_CONTENT=$(head -50 README.md)
-  echo "Extracted setup and usage patterns from README"
-else
-  echo "⚠️  No README.md found"
+    README_CONTENT=$(head -50 README.md)
 fi
 
-# Analyze configuration files
-CONFIG_PATTERNS=""
-if [ -f ".env.example" ] || [ -f ".env" ]; then
-  CONFIG_PATTERNS="Environment configuration patterns found"
-  echo "✅ Found environment configuration"
-fi
-if [ -f "docker-compose.yml" ] || [ -f "Dockerfile" ]; then
-  CONFIG_PATTERNS="$CONFIG_PATTERNS, Docker containerization"
-  echo "✅ Found Docker configuration"
-fi
-
-echo ""
-echo "🎯 CONTEXT ANALYSIS COMPLETE - CREATING TASK BREAKDOWN"
-echo "====================================================="
+echo "📋 PROJECT CONTEXT"
+echo "=================="
+echo "Problem: $PROBLEM_STATEMENT"
+echo "Why: $WHY"
+echo "Success Criteria: $SUCCESS_CRITERIA"
+echo "Tech Stack: $TECH_LANGUAGE/$TECH_FRAMEWORK"
 echo ""
 
-# Create comprehensive task breakdown JSON structure
-echo "📝 Creating task breakdown structure..."
-
-# Create tasks.json with comprehensive context analysis
+# Create tasks.json structure
 cat > "$PROJECT_DIR/tasks.json" << 'EOF'
 {
   "metadata": {
@@ -297,28 +215,18 @@ jq --arg timestamp "$TIMESTAMP" \
 
 echo "✅ Created task breakdown template at: $PROJECT_DIR/tasks.json"
 echo ""
-echo "📝 Context Analysis Summary:"
-echo "Problem: $PROBLEM_STATEMENT"
-echo "Tech Stack: [To be discovered by LLM analysis]"
-echo "Project Type: [To be discovered by LLM analysis]"
-echo "Success Criteria: $SUCCESS_CRITERIA"
+echo "📝 NEXT STEPS (CRITICAL)"
+echo "======================="
+echo "1. LLM MUST perform comprehensive codebase analysis as outlined above"
+echo "2. LLM MUST create specific tasks based on discovered patterns and project context"
+echo "3. LLM MUST populate tasks array with complete task objects following the structure below"
+echo "4. LLM MUST set appropriate priorities (P0/P1/P2) and dependencies"
+echo "5. LLM MUST ensure each task is 1-4 hours of focused work"
 echo ""
-echo "📋 Next steps:"
-echo "1. Open $PROJECT_DIR/tasks.json in your editor"
-echo "2. Add specific tasks based on the context analysis above"
-echo "3. Set priorities (P0/P1/P2) and dependencies for each task"
-echo "4. Use the enhance-task command to add more details to individual tasks"
-echo ""
-echo "📄 Complete project structure:"
-echo "$PROJECT_DIR/"
-echo "├── problem.json (✅ analyzed)"
-echo "├── technical.json (✅ analyzed)"
-echo "└── tasks.json (✅ created)"
-echo ""
-
-echo "💡 Task JSON Structure Guide:"
-echo "Each task in the tasks array should follow this structure:"
-echo '
+echo "📋 TASK STRUCTURE TEMPLATE"
+echo "=========================="
+echo "Each task in the tasks array must follow this structure:"
+cat << 'EOT'
 {
   "id": "T1",
   "title": "Implement user authentication API",
@@ -326,7 +234,7 @@ echo '
   "priority": "P0",
   "status": "pending",
   "userStory": "As a user, I want to log in securely, so that I can access protected features",
-  "levelOfEffort": 3, // fibinacci sequence value up to 21 to indicate level of effort for the task.
+  "levelOfEffort": 3,
   "contextAnalysis": {
     "whatExists": ["Express server", "Database connection"],
     "whatsMissing": ["Auth middleware", "JWT handling", "Password hashing"]
@@ -352,49 +260,59 @@ echo '
   "dependencies": [],
   "createdDate": "2024-01-01T00:00:00.000Z",
   "updatedDate": "2024-01-01T00:00:00.000Z"
-}'
+}
+EOT
 
 echo ""
-echo "🎉 TASK BREAKDOWN INITIALIZATION COMPLETE"
-echo "========================================"
-echo "✅ Comprehensive context analysis performed"
-echo "✅ Task breakdown template created with full context"
-echo "✅ Ready for detailed task specification"
+echo "🎯 PRIORITY GUIDELINES"
+echo "====================="
+echo "- P0 (Must Have): Core functionality, blocks other work, user-critical features"
+echo "- P1 (Should Have): Important but not blocking, clear user value, enhances core features"
+echo "- P2 (Nice to Have): Polish, optimization, future enhancements, non-critical features"
 echo ""
-echo "Next Steps:"
-echo "1. Edit $PROJECT_DIR/tasks.json to add specific tasks"
-echo "2. Use the context analysis above to inform your task creation"
-echo "3. Set appropriate priorities and dependencies"
-echo "4. Use enhance-task command for additional task details"
-echo "5. Start implementing P0 tasks in dependency order"
+echo "🔧 PROJECT STRUCTURE"
+echo "===================="
+echo "$PROJECT_DIR/"
+echo "├── problem.json (✅ exists)"
+echo "├── technical.json (✅ exists)"
+echo "└── tasks.json (✅ created - ready for LLM to populate)"
+echo ""
+echo "💡 NEXT COMMANDS"
+echo "==============="
+echo "- add-task $FEATURE_NAME \"Task Title\" [P0|P1|P2] - Add discovered tasks during implementation"
+echo "- execute $FEATURE_NAME [task_id] - Start implementing tasks"
 ```
 
-## Comprehensive Planning Heuristics
+## Task Creation Heuristics
 
-1. **Context-driven analysis** - analyze ALL available context before creating tasks
-2. **Local-first integration** - leverage problem.json and technical.json for comprehensive context
-3. **Specific implementation details** - include exact files, functions, API endpoints, and data models
-4. **Small batch sizing** - ensure each task is 1-4 hours of focused work
-5. **Clear scope boundaries** - explicit "outOfScope" sections prevent feature creep
-6. **Pattern consistency** - follow existing codebase conventions and architecture
-7. **Dependency awareness** - identify and call out blocking relationships clearly
-8. **External integration** - consider external docs, configuration, and deployment requirements
-9. **User-centric focus** - tie each task back to user stories and success criteria
-10. **Quality enforcement** - include acceptance criteria that verify integration and patterns
-11. **Constraint respect** - honor limitations from problem definition and technical approach
-12. **Priority-driven** - organize by user impact and dependencies, not time estimates
-13. **Verification-ready** - include clear success definitions and testing approaches
-14. **Architecture-aware** - ensure tasks fit within existing system design
-15. **Documentation-informed** - use README and config files to understand deployment context
-16. **JSON-structured** - all task data stored in machine-readable format for automation
-17. **Prerequisites validation** - ensure problem.json and technical.json exist and are complete
-18. **Iterative refinement** - use revise-tasks and enhance-task commands for improvements
+1. **Context-driven analysis** - LLM must analyze existing codebase patterns before creating tasks
+2. **Problem alignment** - Tasks must directly address user stories and success criteria
+3. **Technical integration** - Follow established architecture and design patterns
+4. **Small batch sizing** - Each task should be 1-4 hours of focused work
+5. **Clear scope boundaries** - Explicit "outOfScope" sections prevent feature creep
+6. **Dependency awareness** - Identify blocking relationships between tasks
+7. **Pattern consistency** - Follow existing codebase conventions and standards
+8. **Priority-driven** - Organize by user impact and dependencies, not time estimates
+9. **Comprehensive specification** - Include all required fields for complete task definition
+10. **Integration ready** - Consider existing systems and external dependencies
+11. **Verification focused** - Include testable acceptance criteria and success definitions
+12. **Dynamic discovery** - Use LLM analysis rather than hardcoded patterns
 
-## JSON Structure Benefits
+## Integration with Workflow
 
-- **Machine-readable**: Tasks can be processed by tools and scripts
-- **Version controlled**: All planning data tracked in git with the code
-- **Offline-first**: No dependency on external services for planning
-- **Searchable**: Easy to find tasks by priority, status, or dependencies
-- **Extensible**: Can add new fields without breaking existing structure
-- **Integration-ready**: Other tools can read/write task data
+This command integrates with the existing workflow:
+
+1. **plan-problem** - Define problem and users
+2. **plan-technical** - Design technical approach  
+3. **plan-tasks** - Break down into actionable tasks ⭐ IMPROVED
+4. **add-task** - Add discovered tasks during implementation
+5. **execute** - Implement individual tasks
+
+## Benefits
+
+- **Streamlined creation** - Consolidated approach similar to add-task command
+- **Dynamic discovery** - LLM-based codebase analysis instead of hardcoded detection
+- **Comprehensive tasks** - All required fields included from the start
+- **Context-aware** - Leverages problem definition and technical approach
+- **Integration ready** - Fits into existing local-first JSON workflow
+- **Scalable** - Supports projects of any size and complexity
